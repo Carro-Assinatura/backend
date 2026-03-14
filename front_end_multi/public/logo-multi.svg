@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" fill="none">
+  <rect width="400" height="200" rx="16" fill="#f8fafc"/>
+  <text x="200" y="85" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="36" font-weight="700" fill="#1e293b">Multi</text>
+  <text x="200" y="130" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="600">
+    <tspan fill="#6366f1">Experiências</tspan>
+  </text>
+  <rect x="140" y="148" width="120" height="3" rx="1.5" fill="url(#grad)"/>
+  <defs>
+    <linearGradient id="grad" x1="140" y1="0" x2="260" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+  </defs>
+</svg>
