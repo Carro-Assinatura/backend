@@ -576,6 +576,23 @@ O nó **Chat Trigger** gera uma URL de webhook. Configure essa URL em `bot_confi
    - No nó **AI Agent**: ative a opção de streaming nas configurações do nó.  
    Os dois precisam estar com streaming habilitado.
 
+### 7.9 Erro: "Workflow was started" ou bot não responde (só mostra a mensagem do usuário)
+
+**Causa:** O workflow não está retornando a resposta do AI Agent para o chat. Comum quando:
+
+- O nó **Respond to Webhook** está sendo usado — ele **não funciona** com Chat Trigger para enviar respostas ao chat.
+- O **Response Mode** do Chat Trigger está incorreto.
+- O **AI Agent** não está conectado diretamente ao Chat Trigger.
+
+**Solução — estrutura correta do workflow:**
+
+1. **Chat Trigger** → conecte **diretamente** ao nó **AI Agent** (sem Respond to Webhook no meio).
+2. No **Chat Trigger** → Options → **Response Mode** = **"What Last Node Finishes"** (usa a saída do último nó).
+3. **Não use** o nó "Respond to Webhook" para enviar a resposta do chat — o Chat Trigger envia automaticamente a saída do AI Agent.
+4. Se usar N8N &lt; 1.56.0, atualize para 1.56.0+ (suporte melhorado ao Chat Trigger).
+
+**Fluxo esperado:** Chat Trigger → AI Agent → (resposta enviada automaticamente ao chat)
+
 ---
 
 ## 8. Resumo de Acesso por Tabela
