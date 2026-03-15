@@ -2,6 +2,7 @@ import { Navigate, Outlet, NavLink } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard,
+  BarChart2,
   Settings,
   Users,
   FileSpreadsheet,
@@ -10,6 +11,10 @@ import {
   Menu,
   X,
   ChevronRight,
+  Megaphone,
+  Radar,
+  UserSearch,
+  Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -23,7 +28,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 const AdminLayout = () => {
   const { user, isLoading, logout, hasMinLevel } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   if (isLoading) {
     return (
@@ -36,8 +41,12 @@ const AdminLayout = () => {
   if (!user) return <Navigate to="/admin/login" replace />;
 
   const navItems = [
-    { to: "/admin", icon: LayoutDashboard, label: "Dashboard", end: true, minRole: "analista" },
+    { to: "/admin", icon: LayoutDashboard, label: "Visão Geral", end: true, minRole: "analista", group: "Dashboard" },
+    { to: "/admin/fin-camp", icon: BarChart2, label: "Fin Camp", end: false, minRole: "analista", group: "Dashboard" },
     { to: "/admin/spreadsheets", icon: FileSpreadsheet, label: "Planilhas", end: false, minRole: "gerente" },
+    { to: "/admin/tracking", icon: Radar, label: "Tracking", end: false, minRole: "marketing", group: "Marketing" },
+    { to: "/admin/bot-config", icon: Bot, label: "Conf Bot", end: false, minRole: "gerente" },
+    { to: "/admin/clients", icon: UserSearch, label: "Clientes", end: false, minRole: "analista", group: "Marketing" },
     { to: "/admin/settings", icon: Settings, label: "Configurações", end: false, minRole: "gerente" },
     { to: "/admin/users", icon: Users, label: "Usuários", end: false, minRole: "admin" },
     { to: "/admin/logs", icon: ScrollText, label: "Log", end: false, minRole: "admin" },
@@ -48,12 +57,15 @@ const AdminLayout = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:bg-black/20 pointer-events-none"
+          aria-hidden="true"
+        />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform transition-transform lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:z-auto ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform transition-transform duration-300 ease-out ${
+          sidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"
         }`}
       >
         <div className="flex items-center justify-between p-5 border-b border-slate-700">
@@ -61,31 +73,52 @@ const AdminLayout = () => {
             <h2 className="font-bold text-lg">Multi Intranet</h2>
             <p className="text-xs text-slate-400 mt-0.5">{ROLE_LABEL[user.role] || user.role}</p>
           </div>
-          <button className="lg:hidden text-slate-400 hover:text-white" onClick={() => setSidebarOpen(false)}>
+          <button
+            className="text-slate-400 hover:text-white p-1 rounded hover:bg-white/10"
+            onClick={() => setSidebarOpen(false)}
+            title="Fechar menu"
+          >
             <X size={20} />
           </button>
         </div>
 
         <nav className="p-3 space-y-1">
-          {visibleItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${
-                  isActive
-                    ? "bg-white/10 text-white font-medium"
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
-                }`
-              }
-            >
-              <item.icon size={18} />
-              {item.label}
-              <ChevronRight size={14} className="ml-auto opacity-40" />
-            </NavLink>
-          ))}
+          {visibleItems.map((item, i) => {
+            const prevGroup = i > 0 ? (visibleItems[i - 1] as any).group : undefined;
+            const showGroup = (item as any).group && (item as any).group !== prevGroup;
+            return (
+              <div key={item.to}>
+                {showGroup && (
+                  <div className="flex items-center gap-2 px-4 pt-4 pb-1">
+                    {(item as any).group === "Dashboard" ? (
+                      <LayoutDashboard size={12} className="text-slate-500" />
+                    ) : (
+                      <Megaphone size={12} className="text-slate-500" />
+                    )}
+                    <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">{(item as any).group}</span>
+                  </div>
+                )}
+                <NavLink
+                  to={item.to}
+                  end={item.end}
+                  onClick={() => {
+                    if (item.to === "/admin/fin-camp") setSidebarOpen(false);
+                  }}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${
+                      isActive
+                        ? "bg-white/10 text-white font-medium"
+                        : "text-slate-400 hover:text-white hover:bg-white/5"
+                    }`
+                  }
+                >
+                  <item.icon size={18} />
+                  {item.label}
+                  <ChevronRight size={14} className="ml-auto opacity-40" />
+                </NavLink>
+              </div>
+            );
+          })}
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-slate-700">
@@ -103,9 +136,19 @@ const AdminLayout = () => {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div
+        className={`flex-1 flex flex-col min-h-screen transition-[margin] duration-300 ease-out ${
+          sidebarOpen ? "lg:ml-64" : ""
+        }`}
+      >
         <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-4 lg:px-8">
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0 hover:bg-slate-100"
+            onClick={() => setSidebarOpen((v) => !v)}
+            title={sidebarOpen ? "Fechar menu" : "Abrir menu"}
+          >
             <Menu size={20} />
           </Button>
           <div className="flex-1" />

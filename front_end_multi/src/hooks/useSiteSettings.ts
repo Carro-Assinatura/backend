@@ -16,19 +16,23 @@ const DEFAULTS: SiteSettings = {
 };
 
 async function fetchSiteSettings(): Promise<SiteSettings> {
-  const { data } = await supabaseIsolated
-    .from("settings")
-    .select("key, value")
-    .in("key", ["whatsapp_number", "whatsapp_message", "site_title", "site_description"]);
+  try {
+    const { data } = await supabaseIsolated
+      .from("settings")
+      .select("key, value")
+      .in("key", ["whatsapp_number", "whatsapp_message", "site_title", "site_description"]);
 
-  const map = new Map((data ?? []).map((r) => [r.key, r.value]));
+    const map = new Map((data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]));
 
-  return {
-    whatsappNumber: map.get("whatsapp_number") || DEFAULTS.whatsappNumber,
-    whatsappMessage: map.get("whatsapp_message") || DEFAULTS.whatsappMessage,
-    siteTitle: map.get("site_title") || DEFAULTS.siteTitle,
-    siteDescription: map.get("site_description") || DEFAULTS.siteDescription,
-  };
+    return {
+      whatsappNumber: map.get("whatsapp_number") || DEFAULTS.whatsappNumber,
+      whatsappMessage: map.get("whatsapp_message") || DEFAULTS.whatsappMessage,
+      siteTitle: map.get("site_title") || DEFAULTS.siteTitle,
+      siteDescription: map.get("site_description") || DEFAULTS.siteDescription,
+    };
+  } catch {
+    return DEFAULTS;
+  }
 }
 
 export function useSiteSettings() {

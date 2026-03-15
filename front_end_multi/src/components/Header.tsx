@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLogo } from "@/hooks/useLogo";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { useContactAction } from "@/hooks/useContactAction";
 
 const navLinks = [
   { label: "Início", href: "#inicio" },
@@ -20,6 +21,7 @@ const Header = () => {
   const { login } = useAuth();
   const { logoUrl } = useLogo();
   const { whatsappUrl, siteTitle } = useSiteSettings();
+  const contact = useContactAction();
   const [open, setOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showRecover, setShowRecover] = useState(false);
@@ -102,11 +104,17 @@ const Header = () => {
           </button>
 
           {!showLogin ? (
-            <Button variant="cta" size="lg" asChild>
-              <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+            contact.type === "whatsapp" ? (
+              <Button variant="cta" size="lg" asChild>
+                <a href={contact.href} target="_blank" rel="noopener noreferrer">
+                  Falar no WhatsApp
+                </a>
+              </Button>
+            ) : (
+              <Button variant="cta" size="lg" onClick={contact.onClick}>
                 Falar no WhatsApp
-              </a>
-            </Button>
+              </Button>
+            )
           ) : !showRecover ? (
             <form onSubmit={handleLogin} className="flex items-center gap-2 animate-fade-in">
               <input
@@ -213,11 +221,17 @@ const Header = () => {
               <LogIn size={16} />
               Login
             </a>
-            <Button variant="cta" size="lg" asChild className="w-full">
-              <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+            {contact.type === "whatsapp" ? (
+              <Button variant="cta" size="lg" asChild className="w-full">
+                <a href={contact.href} target="_blank" rel="noopener noreferrer">
+                  Falar no WhatsApp
+                </a>
+              </Button>
+            ) : (
+              <Button variant="cta" size="lg" className="w-full" onClick={contact.onClick}>
                 Falar no WhatsApp
-              </a>
-            </Button>
+              </Button>
+            )}
           </nav>
         </div>
       )}

@@ -13,6 +13,13 @@ import SettingsPage from "./pages/admin/SettingsPage.tsx";
 import UsersPage from "./pages/admin/UsersPage.tsx";
 import SpreadsheetsPage from "./pages/admin/SpreadsheetsPage.tsx";
 import AuditLogPage from "./pages/admin/AuditLogPage.tsx";
+import TrackingPage from "./pages/admin/TrackingPage.tsx";
+import BotConfigPage from "./pages/admin/BotConfigPage.tsx";
+import ClientsPage from "./pages/admin/ClientsPage.tsx";
+import FinCampPage from "./pages/admin/FinCampPage.tsx";
+import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
+import TrackingScripts from "./components/TrackingScripts.tsx";
+import VisitorTracker from "./components/VisitorTracker.tsx";
 
 const queryClient = new QueryClient();
 
@@ -23,13 +30,19 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <TrackingScripts />
+          <VisitorTracker />
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<ErrorBoundary><Index /></ErrorBoundary>} />
 
             <Route path="/admin/login" element={<Login />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Dashboard />} />
               <Route path="spreadsheets" element={<SpreadsheetsPage />} />
+              <Route path="fin-camp" element={<ErrorBoundary><FinCampPage /></ErrorBoundary>} />
+              <Route path="tracking" element={<TrackingPage />} />
+              <Route path="bot-config" element={<BotConfigPage />} />
+              <Route path="clients" element={<ClientsPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="logs" element={<AuditLogPage />} />

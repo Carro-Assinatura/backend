@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { api, type AuditItem } from "@/services/api";
-import { Settings, Users, Shield, Clock } from "lucide-react";
+import { Settings, Users, Shield, Clock, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -29,6 +29,14 @@ const Dashboard = () => {
   }, [hasRole]);
 
   const cards = [
+    {
+      title: "Fin Camp",
+      description: "Inteligência de campanha, comportamento e conversão de leads via UTM",
+      icon: BarChart2,
+      color: "bg-indigo-500",
+      action: () => navigate("/admin/fin-camp"),
+      minRole: "analista",
+    },
     {
       title: "Configurações",
       description: "Google Sheets, imagens, WhatsApp",

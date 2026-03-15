@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, ArrowRight } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { useContactAction } from "@/hooks/useContactAction";
 
 const heroImages = [
   {
@@ -21,7 +22,8 @@ const heroImages = [
 const INTERVAL_MS = 5000;
 
 const HeroSection = () => {
-  const { whatsappUrl, siteDescription } = useSiteSettings();
+  const { siteDescription } = useSiteSettings();
+  const contact = useContactAction();
   const [currentIndex, setCurrentIndex] = useState(() =>
     Math.floor(Math.random() * heroImages.length)
   );
@@ -69,12 +71,19 @@ const HeroSection = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 animate-fade-up" style={{ animationDelay: "0.3s" }}>
-            <Button variant="cta" size="lg" className="text-base h-14 px-8" asChild>
-              <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+            {contact.type === "whatsapp" ? (
+              <Button variant="cta" size="lg" className="text-base h-14 px-8" asChild>
+                <a href={contact.href} target="_blank" rel="noopener noreferrer">
+                  <MessageCircle className="mr-2" size={20} />
+                  Falar no WhatsApp
+                </a>
+              </Button>
+            ) : (
+              <Button variant="cta" size="lg" className="text-base h-14 px-8" onClick={contact.onClick}>
                 <MessageCircle className="mr-2" size={20} />
                 Falar no WhatsApp
-              </a>
-            </Button>
+              </Button>
+            )}
             <Button variant="hero" size="lg" className="text-base h-14 px-8" asChild>
               <a href="#modelos">
                 Ver modelos disponíveis

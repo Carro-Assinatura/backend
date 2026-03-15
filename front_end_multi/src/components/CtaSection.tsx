@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { MessageCircle, FileText } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { useContactAction } from "@/hooks/useContactAction";
 
 const CtaSection = () => {
-  const { whatsappUrl } = useSiteSettings();
+  const contact = useContactAction();
 
   return (
     <section className="py-20 md:py-28 bg-hero relative overflow-hidden">
@@ -20,18 +21,33 @@ const CtaSection = () => {
           Fale com nossos especialistas e receba uma proposta personalizada em minutos.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button variant="cta" size="lg" className="text-base h-14 px-10" asChild>
-            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-              <MessageCircle className="mr-2" size={20} />
-              Falar no WhatsApp
-            </a>
-          </Button>
-          <Button variant="hero" size="lg" className="text-base h-14 px-10" asChild>
-            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-              <FileText className="mr-2" size={18} />
-              Solicitar proposta
-            </a>
-          </Button>
+          {contact.type === "whatsapp" ? (
+            <>
+              <Button variant="cta" size="lg" className="text-base h-14 px-10" asChild>
+                <a href={contact.href} target="_blank" rel="noopener noreferrer">
+                  <MessageCircle className="mr-2" size={20} />
+                  Falar no WhatsApp
+                </a>
+              </Button>
+              <Button variant="hero" size="lg" className="text-base h-14 px-10" asChild>
+                <a href={contact.href} target="_blank" rel="noopener noreferrer">
+                  <FileText className="mr-2" size={18} />
+                  Solicitar proposta
+                </a>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="cta" size="lg" className="text-base h-14 px-10" onClick={contact.onClick}>
+                <MessageCircle className="mr-2" size={20} />
+                Falar no WhatsApp
+              </Button>
+              <Button variant="hero" size="lg" className="text-base h-14 px-10" onClick={contact.onClick}>
+                <FileText className="mr-2" size={18} />
+                Solicitar proposta
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </section>
