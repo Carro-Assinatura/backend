@@ -562,6 +562,20 @@ PATCH {{$env.SUPABASE_URL}}/rest/v1/clients?id=eq.{{$json.client_id}}
 
 O nó **Chat Trigger** gera uma URL de webhook. Configure essa URL em `bot_config.webhook_url` na intranet (Conf Bot). O frontend envia mensagens do chat para essa URL.
 
+### 7.8 Erro: "No response received. Streaming enabled in trigger but disabled in agent"
+
+**Causa:** O streaming está ativado no site (Bot Config → Streaming de respostas) ou no Chat Trigger, mas o nó **AI Agent** no workflow N8N não tem streaming habilitado.
+
+**Soluções (escolha uma):**
+
+1. **Desativar streaming no site** (mais simples):  
+   Intranet → Configuração do Bot → desative "Streaming de respostas" e salve.
+
+2. **Ativar streaming no N8N** (para respostas em tempo real):  
+   - No nó **Chat Trigger**: em Options, defina Response Mode como "Streaming".  
+   - No nó **AI Agent**: ative a opção de streaming nas configurações do nó.  
+   Os dois precisam estar com streaming habilitado.
+
 ---
 
 ## 8. Resumo de Acesso por Tabela

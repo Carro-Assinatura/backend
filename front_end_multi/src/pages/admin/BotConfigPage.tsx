@@ -250,6 +250,9 @@ const BotConfigPage = () => {
             <p className="text-xs text-slate-500">
               Exibir respostas em tempo real (requer configuração no workflow N8N)
             </p>
+            <p className="text-xs text-amber-600 mt-1">
+              Se aparecer &quot;No response received&quot;, desative aqui ou ative streaming no nó AI Agent do N8N.
+            </p>
           </div>
           <Switch
             checked={form.enable_streaming ?? false}
