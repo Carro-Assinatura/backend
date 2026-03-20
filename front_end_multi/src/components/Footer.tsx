@@ -10,7 +10,7 @@ const Footer = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const msg = encodeURIComponent(`Olá! Meu nome é ${name} e meu telefone é ${phone}. Gostaria de saber mais sobre carros por assinatura.`);
+    const msg = encodeURIComponent(`Olá! Meu nome é ${name} e meu telefone é ${phone}. Gostaria de saber mais sobre carros zero km por assinatura.`);
     window.open(`${whatsappBase}${msg}`, "_blank");
   };
 

@@ -1,10 +1,15 @@
 import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api, type SettingItem, type CarImage } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, CheckCircle, AlertTriangle, Eye, EyeOff, Upload, Trash2, ImageIcon } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Save, CheckCircle, AlertTriangle, Eye, EyeOff, Upload, Trash2, ImageIcon, Settings2, Users, Map } from "lucide-react";
 import { LOGO_KEY } from "@/hooks/useLogo";
+import { useAuth } from "@/contexts/AuthContext";
+import UserCategoriesTab from "@/components/admin/UserCategoriesTab";
+import SiteMapTab from "@/components/admin/SiteMapTab";
 
 const CATEGORY_LABELS: Record<string, string> = {
   contato: "Contato / WhatsApp",
@@ -16,6 +21,9 @@ const HIDDEN_CATEGORIES = new Set(["colunas", "google_sheets", "imagens"]);
 const SECRET_KEYS = new Set(["google_sheets_api_key", "removebg_api_key"]);
 
 const SettingsPage = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [settings, setSettings] = useState<SettingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,6 +63,7 @@ const SettingsPage = () => {
       }
       const imgs = await api.getCarImages();
       setLogo(imgs.find((i) => i.car_name === LOGO_KEY) ?? null);
+      queryClient.invalidateQueries({ queryKey: ["site-logo"] });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err: unknown) {
@@ -74,6 +83,7 @@ const SettingsPage = () => {
       }
       await api.deleteCarImage(logo.id, LOGO_KEY);
       setLogo(null);
+      queryClient.invalidateQueries({ queryKey: ["site-logo"] });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err: unknown) {
@@ -138,12 +148,12 @@ const SettingsPage = () => {
 
   const hasDirty = Object.keys(dirty).length > 0;
 
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
+  const settingsContent = (
+    <>
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Configurações</h1>
-          <p className="text-slate-500 mt-1">Gerencie as variáveis do sistema</p>
+          <h2 className="text-lg font-semibold text-slate-900">Configurações gerais</h2>
+          <p className="text-sm text-slate-500 mt-1">Variáveis do sistema, logo e contato</p>
         </div>
         <Button onClick={handleSave} disabled={saving || !hasDirty}>
           {saving ? <Loader2 className="animate-spin mr-2" size={16} /> : <Save className="mr-2" size={16} />}
@@ -275,6 +285,43 @@ const SettingsPage = () => {
           </Button>
         </div>
       )}
+    </>
+  );
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-900">Configurações</h1>
+        <p className="text-slate-500 mt-1">Gerencie as variáveis do sistema e níveis de acesso</p>
+      </div>
+
+      <Tabs defaultValue="geral" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="geral" className="gap-2">
+            <Settings2 size={16} />
+            Geral
+          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="categorias" className="gap-2">
+              <Users size={16} />
+              Categoria de Usuário
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="mapa" className="gap-2">
+            <Map size={16} />
+            Mapa do Site
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="geral">{settingsContent}</TabsContent>
+        {isAdmin && (
+          <TabsContent value="categorias">
+            <UserCategoriesTab />
+          </TabsContent>
+        )}
+        <TabsContent value="mapa">
+          <SiteMapTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

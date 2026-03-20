@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api, type UserItem } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,21 +14,21 @@ import {
   X,
 } from "lucide-react";
 
-const ROLES = [
-  { value: "admin", label: "Administrador" },
-  { value: "gerente", label: "Gerente" },
-  { value: "marketing", label: "Marketing" },
-  { value: "analista", label: "Analista" },
-];
-
 const ROLE_COLORS: Record<string, string> = {
   admin: "bg-red-100 text-red-700",
   gerente: "bg-blue-100 text-blue-700",
   marketing: "bg-purple-100 text-purple-700",
   analista: "bg-slate-100 text-slate-700",
 };
+const DEFAULT_ROLE_COLOR = "bg-slate-100 text-slate-700";
 
 const UsersPage = () => {
+  const { data: roles = [] } = useQuery({
+    queryKey: ["user-roles"],
+    queryFn: () => api.getRoles(),
+    staleTime: 60 * 1000,
+  });
+  const roleOptions = roles.map((r) => ({ value: r.key, label: r.label }));
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -48,7 +49,7 @@ const UsersPage = () => {
 
     try {
       await api.createUser(formData);
-      setFormData({ name: "", email: "", password: "", role: "analista" });
+      setFormData((p) => ({ ...p, name: "", email: "", password: "", role: roleOptions[0]?.value || p.role || "analista" }));
       setShowForm(false);
       loadUsers();
     } catch (err: unknown) {
@@ -145,7 +146,7 @@ const UsersPage = () => {
                 onChange={(e) => setFormData((p) => ({ ...p, role: e.target.value }))}
                 className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
               >
-                {ROLES.map((r) => (
+                {roleOptions.map((r) => (
                   <option key={r.value} value={r.value}>{r.label}</option>
                 ))}
               </select>
@@ -192,9 +193,9 @@ const UsersPage = () => {
                     <select
                       value={u.role}
                       onChange={(e) => handleChangeRole(u, e.target.value)}
-                      className={`text-xs font-medium px-2.5 py-1 rounded-full border-0 ${ROLE_COLORS[u.role] || "bg-slate-100"}`}
+                      className={`text-xs font-medium px-2.5 py-1 rounded-full border-0 ${ROLE_COLORS[u.role] || DEFAULT_ROLE_COLOR}`}
                     >
-                      {ROLES.map((r) => (
+                      {roleOptions.map((r) => (
                         <option key={r.value} value={r.value}>{r.label}</option>
                       ))}
                     </select>

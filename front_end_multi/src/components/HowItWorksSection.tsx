@@ -1,9 +1,9 @@
 import { Search, FileText, Truck, Smile } from "lucide-react";
 
 const steps = [
-  { icon: Search, step: "01", title: "Escolha seu carro", desc: "Navegue pelos modelos disponíveis e escolha o que mais combina com você." },
+  { icon: Search, step: "01", title: "Escolha seu carro novo", desc: "Navegue pelos modelos zero km disponíveis e escolha o que mais combina com você." },
   { icon: FileText, step: "02", title: "Escolha o plano", desc: "Selecione o plano de assinatura ideal para suas necessidades e orçamento." },
-  { icon: Truck, step: "03", title: "Receba o carro", desc: "Seu carro zero km é entregue na sua porta, sem burocracia." },
+  { icon: Truck, step: "03", title: "Receba o carro zero km", desc: "Seu carro novo é entregue na sua porta, sem burocracia." },
   { icon: Smile, step: "04", title: "Dirija sem preocupações", desc: "Aproveite a liberdade de dirigir sem se preocupar com manutenção ou desvalorização." },
 ];
 

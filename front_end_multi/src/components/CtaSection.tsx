@@ -15,7 +15,7 @@ const CtaSection = () => {
 
       <div className="container relative z-10 text-center">
         <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-primary-foreground mb-6 max-w-3xl mx-auto">
-          Pronto para dirigir um carro zero sem burocracia?
+          Pronto para dirigir um carro zero km sem burocracia?
         </h2>
         <p className="text-lg text-primary-foreground/70 max-w-xl mx-auto mb-10">
           Fale com nossos especialistas e receba uma proposta personalizada em minutos.

@@ -42,8 +42,14 @@ import {
   AlertTriangle,
   CheckCircle,
   ImageIcon,
+  Upload,
+  Tag,
+  Layers,
 } from "lucide-react";
 import CarImagesTab from "@/components/admin/CarImagesTab";
+import ImportCarPricesTab from "@/components/admin/ImportCarPricesTab";
+import { MarcaTab, CategoriaTab } from "@/components/admin/BrandsCategoriesTab";
+import { useCarSource } from "@/hooks/useCarSource";
 
 type SheetWithPages = Spreadsheet & { pages: SpreadsheetPage[] };
 
@@ -65,6 +71,7 @@ const emptyPage = {
 };
 
 const SpreadsheetsPage = () => {
+  const { carSource, setCarSource } = useCarSource();
   const [sheets, setSheets] = useState<SheetWithPages[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -259,10 +266,27 @@ const SpreadsheetsPage = () => {
             Gerencie as planilhas Google Sheets conectadas ao site
           </p>
         </div>
-        <Button onClick={openNewSheet}>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-slate-50 border border-slate-200">
+            <Label htmlFor="sheets-reflect" className="text-sm font-medium text-slate-700 whitespace-nowrap">
+              Refletir no site
+            </Label>
+            <Switch
+              id="sheets-reflect"
+              checked={carSource === "planilhas"}
+              onCheckedChange={(checked) => {
+                setCarSource(checked ? "planilhas" : "");
+              }}
+            />
+            {carSource === "planilhas" && (
+              <span className="text-xs text-green-600 font-medium">Ativo</span>
+            )}
+          </div>
+          <Button onClick={openNewSheet}>
           <Plus className="mr-2" size={16} />
           Nova Planilha
         </Button>
+        </div>
       </div>
 
       {error && (
@@ -726,6 +750,10 @@ const SpreadsheetsPage = () => {
           <FileSpreadsheet size={16} />
           Planilhas
         </TabsTrigger>
+        <TabsTrigger value="import" className="gap-2">
+          <Upload size={16} />
+          Importar
+        </TabsTrigger>
         <TabsTrigger value="images" className="gap-2">
           <ImageIcon size={16} />
           Fotos dos Carros
@@ -733,6 +761,33 @@ const SpreadsheetsPage = () => {
       </TabsList>
 
       <TabsContent value="sheets">{sheetsContent}</TabsContent>
+      <TabsContent value="import">
+        <Tabs defaultValue="importar" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="importar" className="gap-2">
+              <Upload size={16} />
+              Importar
+            </TabsTrigger>
+            <TabsTrigger value="marca" className="gap-2">
+              <Tag size={16} />
+              Marca
+            </TabsTrigger>
+            <TabsTrigger value="categoria" className="gap-2">
+              <Layers size={16} />
+              Categoria
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="importar">
+            <ImportCarPricesTab />
+          </TabsContent>
+          <TabsContent value="marca">
+            <MarcaTab />
+          </TabsContent>
+          <TabsContent value="categoria">
+            <CategoriaTab />
+          </TabsContent>
+        </Tabs>
+      </TabsContent>
       <TabsContent value="images">
         <CarImagesTab />
       </TabsContent>

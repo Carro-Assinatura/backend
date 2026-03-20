@@ -57,16 +57,16 @@ const HeroSection = () => {
       <div className="container relative z-10 pt-24 pb-16 md:pt-32 md:pb-24">
         <div className="max-w-3xl">
           <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-accent/20 text-accent-foreground mb-6 animate-fade-up">
-            Carro por assinatura
+            Carro zero km por assinatura
           </span>
 
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold leading-[1.08] text-primary-foreground mb-6 animate-fade-up" style={{ animationDelay: "0.1s" }}>
-            Dirija um carro zero<br />
+            Dirija um carro zero km<br />
             <span className="text-gradient">sem entrada</span> e sem preocupação.
           </h1>
 
           <p className="text-lg md:text-xl text-primary-foreground/70 max-w-xl mb-10 animate-fade-up" style={{ animationDelay: "0.2s" }}>
-            Assinatura de carros com manutenção inclusa, seguro e planos flexíveis. 
+            Assinatura de carros zero km com manutenção inclusa, seguro e planos flexíveis. 
             Sem burocracia, sem financiamento.
           </p>
 

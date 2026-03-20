@@ -39,6 +39,7 @@ jobs:
 
       - name: Build
         env:
+          VITE_BASE_PATH: ${{ secrets.VITE_BASE_PATH }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_GOOGLE_SHEETS_API_KEY: ${{ secrets.VITE_GOOGLE_SHEETS_API_KEY }}

@@ -6,7 +6,7 @@ const rows = [
   { feature: "Seguro", own: "Custo extra", sub: "Incluso" },
   { feature: "Desvalorização", own: "Você perde dinheiro", sub: "Sem preocupação" },
   { feature: "Burocracia", own: "Financiamento, IPVA, licenciamento", sub: "Tudo resolvido" },
-  { feature: "Troca de carro", own: "Difícil e caro", sub: "Facilitada" },
+  { feature: "Troca de carro novo", own: "Difícil e caro", sub: "Facilitada" },
   { feature: "Custo mensal previsível", own: "Imprevisível", sub: "Mensalidade fixa" },
 ];
 
@@ -17,10 +17,10 @@ const ComparisonSection = () => {
         <div className="text-center max-w-2xl mx-auto mb-16">
           <span className="text-sm font-semibold uppercase tracking-wider text-accent">Compare</span>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mt-3 mb-4">
-            Carro próprio vs Assinatura
+            Carro próprio vs Assinatura de carro zero km
           </h2>
           <p className="text-muted-foreground text-lg">
-            Veja por que a assinatura é a escolha inteligente.
+            Veja por que assinar um carro novo é a escolha inteligente.
           </p>
         </div>
 
@@ -29,7 +29,7 @@ const ComparisonSection = () => {
           <div className="grid grid-cols-3 bg-primary text-primary-foreground">
             <div className="p-4 md:p-6 font-semibold text-sm md:text-base"></div>
             <div className="p-4 md:p-6 font-semibold text-sm md:text-base text-center">Carro Próprio</div>
-            <div className="p-4 md:p-6 font-semibold text-sm md:text-base text-center bg-accent">Assinatura</div>
+            <div className="p-4 md:p-6 font-semibold text-sm md:text-base text-center bg-accent">Assinatura zero km</div>
           </div>
 
           {rows.map(({ feature, own, sub }, i) => (

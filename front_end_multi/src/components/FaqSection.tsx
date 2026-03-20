@@ -19,7 +19,7 @@ const faqs = [
     a: "Oferecemos planos a partir de 12 meses, com opções de 24 e 36 meses que oferecem mensalidades ainda mais atrativas.",
   },
   {
-    q: "Posso trocar de carro durante o contrato?",
+    q: "Posso trocar de carro novo durante o contrato?",
     a: "Sim! Oferecemos flexibilidade para troca de veículo conforme as condições do seu plano. Consulte nossos especialistas.",
   },
   {
@@ -27,7 +27,7 @@ const faqs = [
     a: "Toda a manutenção preventiva e corretiva está inclusa na mensalidade. Você não terá nenhum custo adicional com revisões.",
   },
   {
-    q: "Posso usar o carro para trabalho?",
+    q: "Posso usar o carro zero km para trabalho?",
     a: "Sim! Temos planos para pessoas físicas e jurídicas. Ideal para profissionais liberais e empresas que desejam frotas sem imobilização de capital.",
   },
 ];

@@ -8,8 +8,6 @@ import TestimonialsSection from "@/components/TestimonialsSection";
 import CtaSection from "@/components/CtaSection";
 import FaqSection from "@/components/FaqSection";
 import Footer from "@/components/Footer";
-import ContactFloat from "@/components/ContactFloat";
-
 const Index = () => {
   return (
     <>
@@ -25,7 +23,6 @@ const Index = () => {
         <FaqSection />
       </main>
       <Footer />
-      <ContactFloat />
     </>
   );
 };

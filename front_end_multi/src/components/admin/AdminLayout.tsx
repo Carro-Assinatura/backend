@@ -1,5 +1,6 @@
 import { Navigate, Outlet, NavLink } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   LayoutDashboard,
   BarChart2,
@@ -15,6 +16,8 @@ import {
   Radar,
   UserSearch,
   Bot,
+  MessageSquareQuote,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -28,6 +31,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 const AdminLayout = () => {
   const { user, isLoading, logout, hasMinLevel } = useAuth();
+  const { hasPermission } = usePermissions();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   if (isLoading) {
@@ -40,19 +44,30 @@ const AdminLayout = () => {
 
   if (!user) return <Navigate to="/admin/login" replace />;
 
+  // Ordem alfabética: grupos e itens dentro de cada grupo
   const navItems = [
-    { to: "/admin", icon: LayoutDashboard, label: "Visão Geral", end: true, minRole: "analista", group: "Dashboard" },
-    { to: "/admin/fin-camp", icon: BarChart2, label: "Fin Camp", end: false, minRole: "analista", group: "Dashboard" },
-    { to: "/admin/spreadsheets", icon: FileSpreadsheet, label: "Planilhas", end: false, minRole: "gerente" },
-    { to: "/admin/tracking", icon: Radar, label: "Tracking", end: false, minRole: "marketing", group: "Marketing" },
-    { to: "/admin/bot-config", icon: Bot, label: "Conf Bot", end: false, minRole: "gerente" },
-    { to: "/admin/clients", icon: UserSearch, label: "Clientes", end: false, minRole: "analista", group: "Marketing" },
-    { to: "/admin/settings", icon: Settings, label: "Configurações", end: false, minRole: "gerente" },
-    { to: "/admin/users", icon: Users, label: "Usuários", end: false, minRole: "admin" },
-    { to: "/admin/logs", icon: ScrollText, label: "Log", end: false, minRole: "admin" },
+    // COMERCIAL (Clientes, Planilhas)
+    { to: "/admin/clients", icon: UserSearch, label: "Clientes", end: false, permissionKey: "menu_clients", minRole: "analista", group: "Comercial" },
+    { to: "/admin/spreadsheets", icon: FileSpreadsheet, label: "Planilhas", end: false, permissionKey: "menu_planilhas", minRole: "gerente", group: "Comercial" },
+    // CONFIGURAÇÕES (Conf Bot, Depoimentos, Geral, Usuários)
+    { to: "/admin/bot-config", icon: Bot, label: "Conf Bot", end: false, permissionKey: "menu_bot_config", minRole: "gerente", group: "Configurações" },
+    { to: "/admin/testimonials", icon: MessageSquareQuote, label: "Depoimentos", end: false, permissionKey: "menu_testimonials", minRole: "marketing", group: "Configurações" },
+    { to: "/admin/settings", icon: Settings, label: "Geral", end: false, permissionKey: "menu_settings", minRole: "gerente", group: "Configurações" },
+    { to: "/admin/users", icon: Users, label: "Usuários", end: false, permissionKey: "menu_users", minRole: "admin", group: "Configurações" },
+    // DASHBOARD (Fin Camp, Visão Geral)
+    { to: "/admin/fin-camp", icon: BarChart2, label: "Fin Camp", end: false, permissionKey: "menu_fin_camp", minRole: "analista", group: "Dashboard" },
+    { to: "/admin", icon: LayoutDashboard, label: "Visão Geral", end: true, permissionKey: "menu_dashboard", minRole: "analista", group: "Dashboard" },
+    // LOG (Logs)
+    { to: "/admin/logs", icon: ScrollText, label: "Logs", end: false, permissionKey: "menu_logs", minRole: "admin", group: "Log" },
+    // MARKETING (Tracking)
+    { to: "/admin/tracking", icon: Radar, label: "Tracking", end: false, permissionKey: "menu_tracking", minRole: "marketing", group: "Marketing" },
   ];
 
-  const visibleItems = navItems.filter((item) => hasMinLevel(item.minRole));
+  const visibleItems = navItems.filter((item) => {
+    if (user?.role === "admin") return true;
+    if (item.permissionKey) return hasPermission(item.permissionKey);
+    return hasMinLevel(item.minRole);
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
@@ -90,20 +105,18 @@ const AdminLayout = () => {
               <div key={item.to}>
                 {showGroup && (
                   <div className="flex items-center gap-2 px-4 pt-4 pb-1">
-                    {(item as any).group === "Dashboard" ? (
-                      <LayoutDashboard size={12} className="text-slate-500" />
-                    ) : (
-                      <Megaphone size={12} className="text-slate-500" />
-                    )}
+                    {(item as any).group === "Dashboard" && <LayoutDashboard size={12} className="text-slate-500" />}
+                    {(item as any).group === "Comercial" && <Briefcase size={12} className="text-slate-500" />}
+                    {(item as any).group === "Configurações" && <Settings size={12} className="text-slate-500" />}
+                    {(item as any).group === "Log" && <ScrollText size={12} className="text-slate-500" />}
+                    {(item as any).group === "Marketing" && <Megaphone size={12} className="text-slate-500" />}
                     <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">{(item as any).group}</span>
                   </div>
                 )}
                 <NavLink
                   to={item.to}
                   end={item.end}
-                  onClick={() => {
-                    if (item.to === "/admin/fin-camp") setSidebarOpen(false);
-                  }}
+                  onClick={() => setSidebarOpen(false)}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${
                       isActive
