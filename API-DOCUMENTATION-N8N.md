@@ -216,6 +216,25 @@ Documentos enviados pelo cliente.
 
 ---
 
+### 4.5b `testimonials`
+
+Depoimentos de clientes exibidos no site.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | UUID | PK |
+| client_id | UUID | FK clients |
+| delivery_photo_url | TEXT | Foto da entrega do carro (URL do storage) |
+| testimonial_text | TEXT | Texto do depoimento (máx 1000 caracteres) |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
+
+**Storage:** Bucket `testimonial-images` (público para leitura).
+
+**RLS:** SELECT público; escrita marketing+.
+
+---
+
 ### 4.6 `client_tracking_events`
 
 Eventos de navegação (pageview, etc.).
@@ -349,6 +368,50 @@ Abas das planilhas.
 | created_at | TIMESTAMPTZ | |
 
 **RLS:** SELECT público; escrita gerente+.
+
+---
+
+### 4.11b `car_prices`
+
+Preços de carros importados de planilhas Excel.
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | UUID | PK |
+| marca | TEXT | Marca |
+| nome_carro | TEXT | Nome do carro |
+| modelo_carro | TEXT | Modelo |
+| prazo_contrato | TEXT | Prazo (ex: 12, 24 meses) |
+| franquia_km_mes | TEXT | Franquia km/mês |
+| tipo_pintura | TEXT | Tipo de pintura |
+| troca_pneus | TEXT | Troca de pneus |
+| manutencao | TEXT | Manutenção |
+| seguro | TEXT | Seguro |
+| carro_reserva | TEXT | Carro reserva |
+| insulfilm | TEXT | Insulfilm |
+| valor_km_excedido | TEXT | Valor km excedido |
+| valor_mensal_locacao | TEXT | Valor mensal |
+| source_sheet | TEXT | Aba de origem |
+| source_row | INTEGER | Linha de origem |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
+
+**RLS:** Leitura analista+; escrita gerente+.
+
+---
+
+### 4.11c `car_brand_mappings`
+
+Marcas aprendidas pelo usuário (nome do carro → marca).
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | UUID | PK |
+| nome_carro | TEXT | Nome do carro (lowercase, único) |
+| marca | TEXT | Marca aprendida |
+| created_at | TIMESTAMPTZ | |
+
+**RLS:** Leitura analista+; escrita gerente+.
 
 ---
 
@@ -562,6 +625,42 @@ PATCH {{$env.SUPABASE_URL}}/rest/v1/clients?id=eq.{{$json.client_id}}
 
 O nó **Chat Trigger** gera uma URL de webhook. Configure essa URL em `bot_config.webhook_url` na intranet (Conf Bot). O frontend envia mensagens do chat para essa URL.
 
+O chat do site permite **upload de arquivos** (PNG, JPEG, JPG, PDF) para documentos de cadastro. Os arquivos chegam no workflow em formato binário.
+
+### 7.7.1 Receber e salvar arquivos do chat no Supabase
+
+Quando o usuário envia um arquivo pelo chat, o payload contém:
+
+- `chatInput` — mensagem de texto (pode indicar o tipo de documento: "comprovante de endereço", "CNH", etc.)
+- `files` — array com metadados de cada arquivo
+- Dados binários — na aba **Binary** do nó, acesse por `binaryKey` de cada arquivo
+
+**Tipos de documento (`client_documents.doc_type`):**
+
+| PF (pessoa física) | PJ (pessoa jurídica) |
+|--------------------|---------------------|
+| cnh | contrato_social |
+| comprovante_endereco | dre_balanco |
+| comprovante_renda | rr_simples_irpj |
+
+**Fluxo no N8N para salvar documento:**
+
+1. **Chat Trigger** recebe mensagem + arquivos
+2. **IF** — verificar se há arquivos (`$binary` não vazio)
+3. **Obter client_id** — do contexto da conversa (metadata, sessão ou criar cliente antes)
+4. **HTTP Request** — Upload para Supabase Storage:
+   - Method: POST
+   - URL: `{{$env.SUPABASE_URL}}/storage/v1/object/client-documents/{{$json.client_id}}/{{$json.fileName}}`
+   - Headers: `apikey`, `Authorization: Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}`, `Content-Type: application/octet-stream`
+   - Body: Binary Data (selecionar o arquivo da aba Binary)
+5. **HTTP Request** — Inserir em `client_documents`:
+   - Method: POST
+   - URL: `{{$env.SUPABASE_URL}}/rest/v1/client_documents`
+   - Headers: `apikey`, `Authorization`, `Content-Type: application/json`, `Prefer: return=representation`
+   - Body: `{"client_id":"...","doc_type":"comprovante_endereco","doc_name":"...","file_url":"client_id/nome_arquivo.pdf","page_count":1}`
+
+**Mapear doc_type pela mensagem:** Use o `chatInput` para inferir o tipo (ex.: "comprovante de endereço" → comprovante_endereco). O AI Agent pode extrair isso antes de chamar um tool/subworkflow que faz o upload.
+
 ### 7.8 Erro: "No response received. Streaming enabled in trigger but disabled in agent"
 
 **Causa:** O streaming está ativado no site (Bot Config → Streaming de respostas) ou no Chat Trigger, mas o nó **AI Agent** no workflow N8N não tem streaming habilitado.
@@ -592,6 +691,16 @@ O nó **Chat Trigger** gera uma URL de webhook. Configure essa URL em `bot_confi
 4. Se usar N8N &lt; 1.56.0, atualize para 1.56.0+ (suporte melhorado ao Chat Trigger).
 
 **Fluxo esperado:** Chat Trigger → AI Agent → (resposta enviada automaticamente ao chat)
+
+### 7.10 Erro: "No item to return was found"
+
+**Causa:** O Chat Trigger espera que o último nó retorne `output` ou `text`. O fluxo pode ter nós após o AI Agent (ex.: envio para WhatsApp) ou o AI Agent não está recebendo/configurando a mensagem corretamente.
+
+**Solução:**
+
+1. O **AI Agent deve ser o último nó** — remova ou desconecte nós que vêm depois (envio WhatsApp, etc.).
+2. No AI Agent, use **"From Connected Chat Trigger"** no Prompt, ou `{{ $json.chatInput }}` para a mensagem do usuário.
+3. Response Mode do Chat Trigger = **"What Last Node Finishes"**.
 
 ---
 

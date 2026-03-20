@@ -30,21 +30,20 @@ ALTER TABLE public.car_prices ALTER COLUMN franquia_km_mes DROP DEFAULT;
 ALTER TABLE public.car_prices ALTER COLUMN prazo_contrato DROP DEFAULT;
 ALTER TABLE public.car_prices ALTER COLUMN valor_mensal_locacao DROP DEFAULT;
 
--- franquia_km_mes: TEXT -> INTEGER (ex: 1500, 3000)
+-- franquia_km_mes: garantir INTEGER (km por mês)
 ALTER TABLE public.car_prices
   ALTER COLUMN franquia_km_mes TYPE INTEGER
-  USING (public.parse_int_from_text(franquia_km_mes));
+  USING (public.parse_int_from_text(franquia_km_mes::text));
 
--- prazo_contrato: TEXT -> INTEGER (ex: 12, 24, 36 meses)
+-- prazo_contrato: TEXT ou INTEGER -> INTEGER
 ALTER TABLE public.car_prices
   ALTER COLUMN prazo_contrato TYPE INTEGER
-  USING (public.parse_int_from_text(prazo_contrato));
+  USING (public.parse_int_from_text(prazo_contrato::text));
 
--- valor_mensal_locacao: TEXT -> NUMERIC (valor monetário)
--- Suporta formato BR (1.500,00) e simples (1500)
+-- valor_mensal_locacao: TEXT ou NUMERIC -> NUMERIC (valor monetário)
 ALTER TABLE public.car_prices
   ALTER COLUMN valor_mensal_locacao TYPE NUMERIC(12, 2)
-  USING (public.parse_numeric_from_text(valor_mensal_locacao));
+  USING (public.parse_numeric_from_text(valor_mensal_locacao::text));
 
 -- Se a coluna valor_contrato existir em sua tabela, descomente:
 -- ALTER TABLE public.car_prices ALTER COLUMN valor_contrato DROP DEFAULT;
