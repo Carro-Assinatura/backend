@@ -61,7 +61,7 @@ O build gera os arquivos estáticos em `front_end_multi/dist` e publica no GitHu
    - O DNS deve apontar para o GitHub Pages (registros A ou CNAME conforme instruções)
    - Adicione o secret `VITE_BASE_PATH` com valor `/` (para domínio na raiz)
 
-3. **Se o domínio aponta para outro host** (Lovable, Vercel, etc.):
+3. **Se o domínio aponta para outro host** (Vercel, Netlify, etc.):
    - O deploy no GitHub não altera esse site
    - É preciso configurar o deploy na plataforma onde o domínio está apontando
 
