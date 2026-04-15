@@ -21,6 +21,21 @@ function copyOgImageToAssets(): Plugin {
   };
 }
 
+/** Injeta fb:app_id no HTML de produção se VITE_FB_APP_ID estiver definida (só dígitos). */
+function injectFbAppIdMeta(): Plugin {
+  return {
+    name: "inject-fb-app-id-meta",
+    transformIndexHtml(html) {
+      const raw = process.env.VITE_FB_APP_ID?.trim() ?? "";
+      if (!/^\d+$/.test(raw)) return html;
+      return html.replace(
+        "</head>",
+        `    <meta property="fb:app_id" content="${raw}" />\n  </head>`
+      );
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || "/",
@@ -31,7 +46,7 @@ export default defineConfig({
       overlay: false,
     },
   },
-  plugins: [react(), copyOgImageToAssets()],
+  plugins: [react(), injectFbAppIdMeta(), copyOgImageToAssets()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
