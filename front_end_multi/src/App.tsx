@@ -24,6 +24,7 @@ import TrackingScripts from "./components/TrackingScripts.tsx";
 import VisitorTracker from "./components/VisitorTracker.tsx";
 import ContactFloat from "./components/ContactFloat.tsx";
 import FaviconSync from "./components/FaviconSync.tsx";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,18 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      {!isSupabaseConfigured && (
+        <div
+          role="alert"
+          className="fixed top-0 left-0 right-0 z-[9999] bg-amber-500 px-4 py-2 text-center text-sm font-medium text-amber-950 shadow-md"
+        >
+          Variáveis{" "}
+          <code className="rounded bg-amber-600/30 px-1">VITE_SUPABASE_URL</code> e{" "}
+          <code className="rounded bg-amber-600/30 px-1">VITE_SUPABASE_ANON_KEY</code> não entraram neste
+          build. Na Vercel: marque o ambiente <strong>Production</strong>, guarde e faça{" "}
+          <strong>Redeploy</strong> (idealmente sem cache).
+        </div>
+      )}
       <ErrorBoundary>
         <BrowserRouter basename={routerBasename}>
           <AuthProvider>

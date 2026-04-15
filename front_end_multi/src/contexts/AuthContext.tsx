@@ -20,14 +20,14 @@ const ROLE_LEVEL: Record<string, number> = {
 
 const AuthContext = createContext<AuthState | null>(null);
 
-const SUPA_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
 async function fetchProfileREST(userId: string): Promise<{ id: string; name: string; role: string } | null> {
+  const base = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim();
+  const key = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? "").trim();
+  if (!base || !key) return null;
   try {
     const res = await fetch(
-      `${SUPA_URL}/rest/v1/profiles?select=id,name,role&id=eq.${userId}`,
-      { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } },
+      `${base}/rest/v1/profiles?select=id,name,role&id=eq.${userId}`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } },
     );
     if (!res.ok) return null;
     const rows = await res.json();

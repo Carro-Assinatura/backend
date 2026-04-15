@@ -1603,8 +1603,11 @@ export const publicClientApi = {
   },
 
   uploadClientDoc: async (clientId: string, file: File): Promise<string> => {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim();
+    const anonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? "").trim();
+    if (!supabaseUrl || !anonKey) {
+      throw new Error("Supabase não configurado no ambiente (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).");
+    }
     const fnUrl = `${supabaseUrl}/functions/v1/upload-client-doc`;
 
     const formData = new FormData();
