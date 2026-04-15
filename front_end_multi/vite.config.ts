@@ -3,17 +3,20 @@ import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 
-/** Garante og-social.png em /assets/ (mesmo bundle do deploy) para crawlers e SPA rewrites. */
+/**
+ * Copia og-social.png de public/ → dist/assets/ no fim do build.
+ * Não depender de dist/og-social.png (cópia do public pode correr depois de closeBundle em alguns ambientes).
+ */
 function copyOgImageToAssets(): Plugin {
   return {
     name: "copy-og-image-to-assets",
     closeBundle() {
       const dist = path.resolve(__dirname, "dist");
-      const from = path.join(dist, "og-social.png");
-      if (!fs.existsSync(from)) return;
+      const from = path.join(__dirname, "public", "og-social.png");
       const assetsDir = path.join(dist, "assets");
-      if (!fs.existsSync(assetsDir)) return;
+      if (!fs.existsSync(from) || !fs.existsSync(assetsDir)) return;
       fs.copyFileSync(from, path.join(assetsDir, "og-social.png"));
+      fs.copyFileSync(from, path.join(dist, "og-social.png"));
     },
   };
 }

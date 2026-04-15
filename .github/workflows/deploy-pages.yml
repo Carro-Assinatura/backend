@@ -52,6 +52,12 @@ jobs:
           VITE_REMOVEBG_API_KEY: ${{ secrets.VITE_REMOVEBG_API_KEY }}
         run: npm run build
 
+      - name: Verificar imagem Open Graph no dist
+        run: |
+          test -f dist/assets/og-social.png || (echo "Falta dist/assets/og-social.png" && exit 1)
+          test -f dist/og-social.png || (echo "Falta dist/og-social.png" && exit 1)
+          file dist/assets/og-social.png
+
       - name: Copiar index para 404 (SPA)
         run: cp dist/index.html dist/404.html
 
