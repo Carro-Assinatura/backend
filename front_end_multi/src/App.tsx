@@ -27,13 +27,17 @@ import FaviconSync from "./components/FaviconSync.tsx";
 
 const queryClient = new QueryClient();
 
+/** BASE_URL da Vite é "/" na raiz; basename vazio quebra o React Router — usar undefined. */
+const viteBase = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+const routerBasename = viteBase.length > 0 ? viteBase : undefined;
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <ErrorBoundary>
-        <BrowserRouter basename={(import.meta.env.BASE_URL ?? "/").replace(/\/$/, "") || ""}>
+        <BrowserRouter basename={routerBasename}>
           <AuthProvider>
             <FaviconSync />
             <TrackingScripts />
