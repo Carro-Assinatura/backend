@@ -47,14 +47,28 @@ function findImageForCar(
 }
 
 function groupCarsByBrand(cars: CarDisplay[]): Map<string, CarDisplay[]> {
+  const promoCars: CarDisplay[] = [];
   const byBrand = new Map<string, CarDisplay[]>();
   for (const car of cars) {
+    if (car.isPromoGroup) {
+      promoCars.push(car);
+      continue;
+    }
     const brand = (car.marca || car.name.split(/\s+/)[0] || "Outros").trim();
     const key = brand.toLowerCase();
     if (!byBrand.has(key)) byBrand.set(key, []);
     byBrand.get(key)!.push(car);
   }
-  return byBrand;
+  const out = new Map<string, CarDisplay[]>();
+  if (promoCars.length > 0) {
+    promoCars.sort((a, b) => a.minPrice - b.minPrice);
+    out.set("__promo__", promoCars);
+  }
+  for (const [k, v] of byBrand) {
+    v.sort((a, b) => a.minPrice - b.minPrice);
+    out.set(k, v);
+  }
+  return out;
 }
 
 const fallbackCars: CarDisplay[] = [
@@ -432,11 +446,13 @@ function CarCardCalculator({
 /* ─── Brand Carousel (normal) ─── */
 const BrandCarousel = ({
   brand,
+  promoSection,
   cars,
   fallbackImg,
   whatsappBase,
 }: {
   brand: string;
+  promoSection?: boolean;
   cars: CarDisplay[];
   fallbackImg: string;
   whatsappBase: string;
@@ -451,8 +467,12 @@ const BrandCarousel = ({
 
   return (
     <div className="mb-12 last:mb-0">
-      <h3 className="text-xl md:text-2xl font-bold text-foreground mb-4 px-1">
-        {brand}
+      <h3
+        className={`text-xl md:text-2xl font-bold mb-4 px-1 ${
+          promoSection ? "text-red-600 font-extrabold" : "text-foreground"
+        }`}
+      >
+        {promoSection ? "Promoção" : brand}
       </h3>
       <div className="relative">
         <button
@@ -493,6 +513,7 @@ const BrandCarousel = ({
 /* ─── Brand Carousel (calculator mode) ─── */
 function BrandCarouselCalculator({
   brand,
+  promoSection,
   carGroups,
   selectedByCar,
   onSelectVariant,
@@ -503,6 +524,7 @@ function BrandCarouselCalculator({
   filterPrazo,
 }: {
   brand: string;
+  promoSection?: boolean;
   carGroups: Map<string, CarPriceVariant[]>;
   selectedByCar: Map<string, CarPriceVariant | null>;
   onSelectVariant: (carKey: string, v: CarPriceVariant | null) => void;
@@ -524,8 +546,12 @@ function BrandCarouselCalculator({
 
   return (
     <div className="mb-12 last:mb-0">
-      <h3 className="text-xl md:text-2xl font-bold text-foreground mb-4 px-1">
-        {brand}
+      <h3
+        className={`text-xl md:text-2xl font-bold mb-4 px-1 ${
+          promoSection ? "text-red-600 font-extrabold" : "text-foreground"
+        }`}
+      >
+        {promoSection ? "Promoção" : brand}
       </h3>
       <div className="relative">
         <button
@@ -641,17 +667,19 @@ const CarsSection = () => {
 
   const calculatorBrandGroups = new Map<string, Map<string, CarPriceVariant[]>>();
   for (const [carKey, vars] of calculatorCarGroups) {
-    const marca = vars[0]?.marca || "Outros";
-    const brandKey = marca.toLowerCase();
+    const anyPromo = vars.some((v) => v.isPromoRow);
+    const brandKey = anyPromo ? "__promo__" : (vars[0]?.marca || "Outros").toLowerCase();
     if (!calculatorBrandGroups.has(brandKey))
       calculatorBrandGroups.set(brandKey, new Map());
     calculatorBrandGroups.get(brandKey)!.set(carKey, vars);
   }
 
   const carsByBrand = groupCarsByBrand(displayCars);
-  const brandEntries = Array.from(carsByBrand.entries()).sort(([a], [b]) =>
-    a.localeCompare(b)
-  );
+  const brandEntries = Array.from(carsByBrand.entries()).sort(([a], [b]) => {
+    if (a === "__promo__") return -1;
+    if (b === "__promo__") return 1;
+    return a.localeCompare(b);
+  });
 
   return (
     <section id="modelos" className="py-20 md:py-28 bg-muted/50">
@@ -723,7 +751,11 @@ const CarsSection = () => {
               ) : (
                 <div className="space-y-0">
                   {Array.from(calculatorBrandGroups.entries())
-                    .sort(([a], [b]) => a.localeCompare(b))
+                    .sort(([a], [b]) => {
+                      if (a === "__promo__") return -1;
+                      if (b === "__promo__") return 1;
+                      return a.localeCompare(b);
+                    })
                     .map(([brandKey, carGroups]) => {
                       const brandLabel =
                         carGroups.values().next().value?.[0]?.marca ||
@@ -732,6 +764,7 @@ const CarsSection = () => {
                         <BrandCarouselCalculator
                           key={brandKey}
                           brand={brandLabel}
+                          promoSection={brandKey === "__promo__"}
                           carGroups={carGroups}
                           selectedByCar={selectedByCar}
                           onSelectVariant={(carKey, v) => {
@@ -763,6 +796,7 @@ const CarsSection = () => {
                 <BrandCarousel
                   key={brandKey}
                   brand={brandLabel}
+                  promoSection={brandKey === "__promo__"}
                   cars={brandCars}
                   fallbackImg={fallbackImg}
                   whatsappBase={whatsappBase}

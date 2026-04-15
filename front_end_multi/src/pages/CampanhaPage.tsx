@@ -190,7 +190,8 @@ function CampanhaPage() {
     const marca = vars[0]?.marca || "Outros";
     const modelPart = vars[0]?.nome_carro?.trim() || normalizedKey.split("|")[1] || "";
     const carKey = `${marca}|${modelPart}`;
-    const brandKey = marca.toLowerCase();
+    const anyPromo = vars.some((v) => v.isPromoRow);
+    const brandKey = anyPromo ? "__promo__" : marca.toLowerCase();
     if (!brandGroups.has(brandKey)) brandGroups.set(brandKey, new Map());
     brandGroups.get(brandKey)!.set(carKey, vars);
   }
@@ -281,15 +282,22 @@ function CampanhaPage() {
         ) : (
           <div className={`space-y-8 ${brandGroups.size === 1 ? "pb-24" : ""}`}>
             {Array.from(brandGroups.entries())
-              .sort(([a], [b]) => a.localeCompare(b))
+              .sort(([a], [b]) => {
+                if (a === "__promo__") return -1;
+                if (b === "__promo__") return 1;
+                return a.localeCompare(b);
+              })
               .map(([brandKey, carGroups]) => {
                 const brandLabel =
-                  carGroups.values().next().value?.[0]?.marca ||
-                  brandKey.charAt(0).toUpperCase() + brandKey.slice(1);
+                  brandKey === "__promo__"
+                    ? "Promoção"
+                    : carGroups.values().next().value?.[0]?.marca ||
+                      brandKey.charAt(0).toUpperCase() + brandKey.slice(1);
                 return (
                   <CarouselBrand
                     key={brandKey}
                     brandLabel={brandLabel}
+                    promoSection={brandKey === "__promo__"}
                     carGroups={carGroups}
                     selectedByCar={selectedByCar}
                     setSelectedByCar={setSelectedByCar}
@@ -322,6 +330,7 @@ function CampanhaPage() {
 
 function CarouselBrand({
   brandLabel,
+  promoSection,
   carGroups,
   selectedByCar,
   setSelectedByCar,
@@ -334,6 +343,7 @@ function CarouselBrand({
   hasKmAndPrazo,
 }: {
   brandLabel: string;
+  promoSection?: boolean;
   carGroups: Map<string, CarPriceVariant[]>;
   selectedByCar: Map<string, CarPriceVariant | null>;
   setSelectedByCar: React.Dispatch<React.SetStateAction<Map<string, CarPriceVariant | null>>>;
@@ -358,7 +368,13 @@ function CarouselBrand({
 
   return (
     <div>
-      <h3 className="text-lg font-bold text-foreground mb-4">{brandLabel}</h3>
+      <h3
+        className={`text-lg font-bold mb-4 ${
+          promoSection ? "text-red-600 font-extrabold" : "text-foreground"
+        }`}
+      >
+        {brandLabel}
+      </h3>
       <div className="relative">
         {hasMultiple && (
           <>

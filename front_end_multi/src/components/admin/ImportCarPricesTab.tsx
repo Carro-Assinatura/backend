@@ -31,6 +31,7 @@ import {
   HelpCircle,
   Pencil,
   Search,
+  Megaphone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCarSource } from "@/hooks/useCarSource";
@@ -89,6 +90,13 @@ const ImportCarPricesTab = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [editingCar, setEditingCar] = useState<CarPrice | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+
+  const [promoTarget, setPromoTarget] = useState<CarPrice | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoSaving, setPromoSaving] = useState(false);
+  const [promoValor, setPromoValor] = useState("");
+  const [promoStart, setPromoStart] = useState("");
+  const [promoEnd, setPromoEnd] = useState("");
 
   const { data: importSettings } = useQuery({
     queryKey: ["import-settings"],
@@ -363,6 +371,8 @@ const ImportCarPricesTab = () => {
       );
       const count = inserted + updated;
       await queryClient.invalidateQueries({ queryKey: ["cars-for-site"] });
+      await queryClient.invalidateQueries({ queryKey: ["car-prices-full"] });
+      await queryClient.invalidateQueries({ queryKey: ["hero-promo-snippets"] });
       if (carSource !== "importar") {
         await setCarSource("importar");
       }
@@ -425,6 +435,8 @@ const ImportCarPricesTab = () => {
       setEditingCar(null);
       refetchImported();
       queryClient.invalidateQueries({ queryKey: ["cars-for-site"] });
+      queryClient.invalidateQueries({ queryKey: ["car-prices-full"] });
+      queryClient.invalidateQueries({ queryKey: ["hero-promo-snippets"] });
     } catch (err) {
       toast({
         title: "Erro",
@@ -433,6 +445,93 @@ const ImportCarPricesTab = () => {
       });
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  const openPromoDialog = async (car: CarPrice) => {
+    setPromoTarget(car);
+    setPromoLoading(true);
+    try {
+      const existing = await api.getCarPricePromotionByCarPriceId(car.id);
+      if (existing) {
+        setPromoValor(String(existing.promo_valor_mensal_locacao));
+        setPromoStart(String(existing.starts_on).slice(0, 10));
+        setPromoEnd(String(existing.ends_on).slice(0, 10));
+      } else {
+        setPromoValor("");
+        const t = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+        setPromoStart(t);
+        setPromoEnd(t);
+      }
+    } catch (err) {
+      toast({
+        title: "Erro",
+        description: err instanceof Error ? err.message : "Não foi possível carregar a promoção.",
+        variant: "destructive",
+      });
+      setPromoTarget(null);
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleSavePromo = async () => {
+    if (!promoTarget) return;
+    const v = parseFloat(String(promoValor).replace(",", "."));
+    if (!Number.isFinite(v) || v <= 0) {
+      toast({ title: "Valor inválido", description: "Informe um preço promocional maior que zero.", variant: "destructive" });
+      return;
+    }
+    if (!promoStart || !promoEnd) {
+      toast({ title: "Datas obrigatórias", description: "Informe início e fim da promoção.", variant: "destructive" });
+      return;
+    }
+    if (promoEnd < promoStart) {
+      toast({ title: "Período inválido", description: "A data final deve ser igual ou posterior à inicial.", variant: "destructive" });
+      return;
+    }
+    setPromoSaving(true);
+    try {
+      await api.upsertCarPricePromotion({
+        car_price_id: promoTarget.id,
+        promo_valor_mensal_locacao: v,
+        starts_on: promoStart,
+        ends_on: promoEnd,
+      });
+      toast({ title: "Promoção salva", description: "O site passará a exibir o preço promocional no período informado." });
+      setPromoTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["cars-for-site"] });
+      queryClient.invalidateQueries({ queryKey: ["car-prices-full"] });
+      queryClient.invalidateQueries({ queryKey: ["hero-promo-snippets"] });
+    } catch (err) {
+      toast({
+        title: "Erro",
+        description: err instanceof Error ? err.message : "Não foi possível salvar a promoção.",
+        variant: "destructive",
+      });
+    } finally {
+      setPromoSaving(false);
+    }
+  };
+
+  const handleRemovePromo = async () => {
+    if (!promoTarget) return;
+    setPromoSaving(true);
+    try {
+      await api.deleteCarPricePromotion(promoTarget.id);
+      toast({ title: "Promoção removida" });
+      setPromoTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["cars-for-site"] });
+      queryClient.invalidateQueries({ queryKey: ["car-prices-full"] });
+      queryClient.invalidateQueries({ queryKey: ["hero-promo-snippets"] });
+    } catch (err) {
+      toast({
+        title: "Erro",
+        description: err instanceof Error ? err.message : "Não foi possível remover.",
+        variant: "destructive",
+      });
+    } finally {
+      setPromoSaving(false);
     }
   };
 
@@ -566,7 +665,7 @@ const ImportCarPricesTab = () => {
                 <th className="text-left px-3 py-2 font-medium">Franquia</th>
                 <th className="text-left px-3 py-2 font-medium">Prazo</th>
                 <th className="text-left px-3 py-2 font-medium">Valor Mensal</th>
-                <th className="text-left px-3 py-2 font-medium w-20">Ações</th>
+                <th className="text-left px-3 py-2 font-medium min-w-[168px]">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -579,15 +678,26 @@ const ImportCarPricesTab = () => {
                   <td className="px-3 py-2">{car.prazo_contrato ?? "—"}</td>
                   <td className="px-3 py-2">{car.valor_mensal_locacao != null ? String(car.valor_mensal_locacao) : "—"}</td>
                   <td className="px-3 py-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 px-2"
-                      onClick={() => setEditingCar({ ...car })}
-                    >
-                      <Pencil size={14} className="mr-1" />
-                      Editar
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2"
+                        onClick={() => setEditingCar({ ...car })}
+                      >
+                        <Pencil size={14} className="mr-1" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2 border-red-200 text-red-700 hover:bg-red-50"
+                        onClick={() => void openPromoDialog(car)}
+                      >
+                        <Megaphone size={14} className="mr-1" />
+                        Promoção
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1034,6 +1144,70 @@ const ImportCarPricesTab = () => {
               {savingEdit ? <Loader2 size={16} className="animate-spin mr-1" /> : null}
               Salvar
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!promoTarget} onOpenChange={(o) => !o && setPromoTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Promoção</DialogTitle>
+            <DialogDescription>
+              Preço especial por período para{" "}
+              <strong>
+                {(promoTarget?.marca ?? "").trim()} {(promoTarget?.nome_carro ?? "").trim()}
+              </strong>
+              . No site, o valor promocional só aparece entre as datas informadas (horário de Brasília).
+            </DialogDescription>
+          </DialogHeader>
+          {promoLoading ? (
+            <div className="flex justify-center py-8 text-muted-foreground">
+              <Loader2 className="animate-spin" size={28} />
+            </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              <div>
+                <Label>Preço promocional mensal (R$)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Ex: 1899.90"
+                  value={promoValor}
+                  onChange={(e) => setPromoValor(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Início</Label>
+                  <Input type="date" value={promoStart} onChange={(e) => setPromoStart(e.target.value)} className="mt-1" />
+                </div>
+                <div>
+                  <Label>Fim</Label>
+                  <Input type="date" value={promoEnd} onChange={(e) => setPromoEnd(e.target.value)} className="mt-1" />
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0 flex-col sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              className="text-red-600 border-red-200 hover:bg-red-50"
+              disabled={promoSaving || promoLoading || !promoTarget}
+              onClick={() => void handleRemovePromo()}
+            >
+              Remover promoção
+            </Button>
+            <div className="flex gap-2 sm:ml-auto">
+              <Button type="button" variant="ghost" onClick={() => setPromoTarget(null)} disabled={promoSaving}>
+                Cancelar
+              </Button>
+              <Button type="button" onClick={() => void handleSavePromo()} disabled={promoSaving || promoLoading || !promoTarget}>
+                {promoSaving ? <Loader2 size={16} className="animate-spin mr-1" /> : null}
+                Salvar
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

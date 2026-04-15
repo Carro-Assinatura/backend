@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, ArrowRight } from "lucide-react";
-import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useContactAction } from "@/hooks/useContactAction";
+import HeroPromotions from "@/components/HeroPromotions";
 
 const heroImages = [
   {
@@ -22,7 +22,6 @@ const heroImages = [
 const INTERVAL_MS = 5000;
 
 const HeroSection = () => {
-  const { siteDescription } = useSiteSettings();
   const contact = useContactAction();
   const [currentIndex, setCurrentIndex] = useState(() =>
     Math.floor(Math.random() * heroImages.length)
@@ -55,52 +54,57 @@ const HeroSection = () => {
       </div>
 
       <div className="container relative z-10 pt-24 pb-16 md:pt-32 md:pb-24">
-        <div className="max-w-3xl">
-          <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-accent/20 text-accent-foreground mb-6 animate-fade-up">
-            Carro zero km por assinatura
-          </span>
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-12 xl:gap-16">
+          <div className="max-w-3xl flex-shrink-0">
+            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-accent/20 text-accent-foreground mb-6 animate-fade-up">
+              Carro zero km por assinatura
+            </span>
 
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold leading-[1.08] text-primary-foreground mb-6 animate-fade-up" style={{ animationDelay: "0.1s" }}>
-            Dirija um carro zero km<br />
-            <span className="text-gradient">sem entrada</span> e sem preocupação.
-          </h1>
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold leading-[1.08] text-primary-foreground mb-6 animate-fade-up" style={{ animationDelay: "0.1s" }}>
+              Seu carro zero km
+              <br />
+              <span className="whitespace-nowrap">por assinatura</span>
+            </h1>
 
-          <p className="text-lg md:text-xl text-primary-foreground/70 max-w-xl mb-10 animate-fade-up" style={{ animationDelay: "0.2s" }}>
-            Assinatura de carros zero km com manutenção inclusa, seguro e planos flexíveis. 
-            Sem burocracia, sem financiamento.
-          </p>
+            <p className="text-lg md:text-xl text-primary-foreground/70 max-w-xl mb-10 animate-fade-up" style={{ animationDelay: "0.2s" }}>
+              Assinatura de carros zero km com manutenção inclusa, IPVA, seguro e planos flexíveis. Sem burocracia,
+              sem financiamento.
+            </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 animate-fade-up" style={{ animationDelay: "0.3s" }}>
-            {contact.type === "whatsapp" ? (
-              <Button variant="cta" size="lg" className="text-base h-14 px-8" asChild>
-                <a href={contact.href} target="_blank" rel="noopener noreferrer">
+            <div className="flex flex-col sm:flex-row gap-4 animate-fade-up" style={{ animationDelay: "0.3s" }}>
+              {contact.type === "whatsapp" ? (
+                <Button variant="cta" size="lg" className="text-base h-14 px-8" asChild>
+                  <a href={contact.href} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="mr-2" size={20} />
+                    Falar no WhatsApp
+                  </a>
+                </Button>
+              ) : (
+                <Button variant="cta" size="lg" className="text-base h-14 px-8" onClick={contact.onClick}>
                   <MessageCircle className="mr-2" size={20} />
                   Falar no WhatsApp
+                </Button>
+              )}
+              <Button variant="hero" size="lg" className="text-base h-14 px-8" asChild>
+                <a href="#modelos">
+                  Ver modelos disponíveis
+                  <ArrowRight className="ml-2" size={18} />
                 </a>
               </Button>
-            ) : (
-              <Button variant="cta" size="lg" className="text-base h-14 px-8" onClick={contact.onClick}>
-                <MessageCircle className="mr-2" size={20} />
-                Falar no WhatsApp
-              </Button>
-            )}
-            <Button variant="hero" size="lg" className="text-base h-14 px-8" asChild>
-              <a href="#modelos">
-                Ver modelos disponíveis
-                <ArrowRight className="ml-2" size={18} />
-              </a>
-            </Button>
+            </div>
+
+            {/* Trust badges */}
+            <div className="flex flex-wrap gap-6 mt-12 animate-fade-up" style={{ animationDelay: "0.4s" }}>
+              {["Sem Entrada", "Carro 0km", "Manutenção Inclusa"].map((badge) => (
+                <div key={badge} className="flex items-center gap-2 text-primary-foreground/60 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-accent" />
+                  {badge}
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Trust badges */}
-          <div className="flex flex-wrap gap-6 mt-12 animate-fade-up" style={{ animationDelay: "0.4s" }}>
-            {["Sem Entrada", "Carro 0km", "Manutenção Inclusa"].map((badge) => (
-              <div key={badge} className="flex items-center gap-2 text-primary-foreground/60 text-sm">
-                <div className="w-2 h-2 rounded-full bg-accent" />
-                {badge}
-              </div>
-            ))}
-          </div>
+          <HeroPromotions className="w-full max-w-md xl:w-[min(420px,40vw)] xl:flex-shrink-0 flex flex-col items-center justify-center self-center xl:justify-end text-center rounded-2xl border border-primary-foreground/20 bg-primary-foreground/10 px-6 py-8 backdrop-blur-sm min-h-[200px]" />
         </div>
       </div>
     </section>

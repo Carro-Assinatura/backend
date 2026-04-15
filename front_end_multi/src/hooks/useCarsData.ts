@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/services/api";
+import { api, type CarPrice } from "@/services/api";
 import { fetchAllCars, getCarImagesMap, type CarRow } from "@/services/googleSheets";
 
 const CARS_QUERY_KEY = ["cars-for-site"];
@@ -12,6 +12,8 @@ export interface CarDisplay {
   minPrice: number;
   formattedPrice: string;
   image: string;
+  /** Pelo menos uma linha importada com promoção ativa */
+  isPromoGroup?: boolean;
 }
 
 const MULTI_WORD_BRANDS = new Set([
@@ -109,11 +111,21 @@ function deduplicateFromSheets(rows: CarRow[], imageMap: Map<string, string>): C
     .sort((a, b) => a.minPrice - b.minPrice);
 }
 
+function effectiveMonthlyFromRow(
+  row: CarPrice,
+  promoValorByCarPriceId: Map<string, number>,
+): number {
+  const promo = promoValorByCarPriceId.get(row.id);
+  if (promo != null && promo > 0) return promo;
+  return parsePriceFromString(row.valor_mensal_locacao);
+}
+
 function carPricesToDisplay(
-  prices: { nome_carro: string; modelo_carro?: string; marca: string; categoria?: string; valor_mensal_locacao: string | number | null }[],
-  imageMap: Map<string, string>
+  prices: CarPrice[],
+  imageMap: Map<string, string>,
+  promoValorByCarPriceId: Map<string, number>,
 ): CarDisplay[] {
-  const grouped = new Map<string, { prices: typeof prices }>();
+  const grouped = new Map<string, { prices: CarPrice[] }>();
   for (const p of prices) {
     const marca = (p.marca ?? "").trim().toLowerCase();
     const nome = ((p.nome_carro ?? "") || (p.modelo_carro ?? "") || "").trim().toLowerCase();
@@ -125,12 +137,13 @@ function carPricesToDisplay(
   }
   return Array.from(grouped.entries())
     .map(([, { prices: variants }]) => {
-      const priceValues = variants.map((v) => parsePriceFromString(v.valor_mensal_locacao)).filter((p) => p > 0);
+      const priceValues = variants.map((v) => effectiveMonthlyFromRow(v, promoValorByCarPriceId)).filter((p) => p > 0);
       const minPrice = priceValues.length > 0 ? Math.min(...priceValues) : 0;
       const first = variants[0];
       const marca = (first.marca ?? "").trim();
       const nomePart = (first.nome_carro ?? first.modelo_carro ?? "").trim();
       const name = [marca, nomePart].filter(Boolean).join(" ") || "Carro";
+      const isPromoGroup = variants.some((v) => promoValorByCarPriceId.has(v.id));
       return {
         name,
         marca: marca || (name.split(/\s+/)[0] ?? "") || "",
@@ -140,9 +153,13 @@ function carPricesToDisplay(
           ? minPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 })
           : "Consulte",
         image: findImageForCar(name, imageMap),
+        isPromoGroup,
       };
     })
-    .sort((a, b) => a.minPrice - b.minPrice);
+    .sort((a, b) => {
+      if (!!a.isPromoGroup !== !!b.isPromoGroup) return a.isPromoGroup ? -1 : 1;
+      return a.minPrice - b.minPrice;
+    });
 }
 
 async function fetchCarsForSite(carSource: string): Promise<CarDisplay[]> {
@@ -150,8 +167,14 @@ async function fetchCarsForSite(carSource: string): Promise<CarDisplay[]> {
   const imgMap = imageMap ?? new Map<string, string>();
 
   if (carSource === "importar") {
-    const carPrices = await api.getCarPricesForSite();
-    return carPricesToDisplay(carPrices, imgMap);
+    const [carPrices, promos] = await Promise.all([
+      api.getCarPricesForSite(),
+      api.getActiveCarPricePromotionsPublic().catch(() => []),
+    ]);
+    const promoValorByCarPriceId = new Map(
+      promos.map((p) => [p.car_price_id, Number(p.promo_valor_mensal_locacao)] as const),
+    );
+    return carPricesToDisplay(carPrices, imgMap, promoValorByCarPriceId);
   }
 
   if (carSource === "planilhas") {
@@ -162,9 +185,15 @@ async function fetchCarsForSite(carSource: string): Promise<CarDisplay[]> {
   // Fallback: quando car_source está vazio (ex: RLS bloqueando leitura), tenta importar
   if (carSource === "") {
     try {
-      const carPrices = await api.getCarPricesForSite();
+      const [carPrices, promos] = await Promise.all([
+        api.getCarPricesForSite(),
+        api.getActiveCarPricePromotionsPublic().catch(() => []),
+      ]);
       if (carPrices.length > 0) {
-        return carPricesToDisplay(carPrices, imgMap);
+        const promoValorByCarPriceId = new Map(
+          promos.map((p) => [p.car_price_id, Number(p.promo_valor_mensal_locacao)] as const),
+        );
+        return carPricesToDisplay(carPrices, imgMap, promoValorByCarPriceId);
       }
     } catch {
       // ignora erro

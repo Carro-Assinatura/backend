@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 
 export interface CarPriceVariant {
+  id: string;
   marca: string;
   nome_carro: string;
   modelo_carro: string;
@@ -11,9 +12,11 @@ export interface CarPriceVariant {
   valor_mensal_locacao: string;
   price: number;
   formattedPrice: string;
+  /** Linha com promoção ativa (preço exibido é o promocional). */
+  isPromoRow?: boolean;
 }
 
-const QUERY_KEY = ["car-prices-full"];
+const QUERY_KEY = ["car-prices-full"] as const;
 
 function parsePrice(val: string | number | null | undefined): number {
   if (val == null || val === "") return 0;
@@ -30,10 +33,21 @@ function toStr(val: string | number | null | undefined): string {
 async function fetchCarPricesFull(carSource: string): Promise<CarPriceVariant[]> {
   if (carSource !== "importar") return [];
 
-  const rows = await api.getCarPricesFullForSite();
+  const [rows, promos] = await Promise.all([
+    api.getCarPricesFullForSite(),
+    api.getActiveCarPricePromotionsPublic().catch(() => []),
+  ]);
+  const promoById = new Map(
+    promos.map((p) => [p.car_price_id, Number(p.promo_valor_mensal_locacao)] as const),
+  );
+
   return rows.map((r) => {
-    const price = parsePrice(r.valor_mensal_locacao);
+    const base = parsePrice(r.valor_mensal_locacao);
+    const pVal = promoById.get(r.id);
+    const hasPromo = pVal != null && Number.isFinite(pVal) && pVal > 0;
+    const price = hasPromo ? pVal : base;
     return {
+      id: r.id,
       marca: (r.marca ?? "").trim(),
       nome_carro: (r.nome_carro ?? "").trim(),
       modelo_carro: (r.modelo_carro ?? "").trim(),
@@ -46,6 +60,7 @@ async function fetchCarPricesFull(carSource: string): Promise<CarPriceVariant[]>
         price > 0
           ? price.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 })
           : "Consulte",
+      isPromoRow: hasPromo,
     };
   });
 }

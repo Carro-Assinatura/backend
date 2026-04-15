@@ -262,6 +262,22 @@ export interface CarPrice {
   updated_at: string;
 }
 
+export interface CarPricePromotion {
+  id: string;
+  car_price_id: string;
+  promo_valor_mensal_locacao: number;
+  starts_on: string;
+  ends_on: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** Texto para o banner do hero (promoções ativas). */
+export interface HeroPromoSnippet {
+  carDisplayName: string;
+  formattedPromoPrice: string;
+}
+
 export interface ClientTrackingEvent {
   id: number;
   client_id: string | null;
@@ -1387,7 +1403,7 @@ export const api = {
     while (hasMore) {
       const { data, error } = await supabaseIsolated
         .from("car_prices")
-        .select("marca, nome_carro, modelo_carro, categoria, valor_mensal_locacao")
+        .select("id, marca, nome_carro, modelo_carro, categoria, valor_mensal_locacao")
         .order("nome_carro")
         .range(offset, offset + PAGE_SIZE - 1);
       if (error) throw new Error(error.message);
@@ -1408,7 +1424,7 @@ export const api = {
     while (hasMore) {
       const { data, error } = await supabaseIsolated
         .from("car_prices")
-        .select("marca, nome_carro, modelo_carro, categoria, prazo_contrato, franquia_km_mes, valor_mensal_locacao")
+        .select("id, marca, nome_carro, modelo_carro, categoria, prazo_contrato, franquia_km_mes, valor_mensal_locacao")
         .order("nome_carro")
         .range(offset, offset + PAGE_SIZE - 1);
       if (error) throw new Error(error.message);
@@ -1501,6 +1517,87 @@ export const api = {
     const { error } = await supabase.from("car_prices").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     if (error) throw new Error(error.message);
     await auditLog("car_prices_delete_all", "Excluiu todos os preços importados");
+  },
+
+  /** Promoções vigentes (RLS: visitante só vê período ativo). */
+  getActiveCarPricePromotionsPublic: async (): Promise<CarPricePromotion[]> => {
+    const { data, error } = await supabaseIsolated
+      .from("car_price_promotions")
+      .select("id, car_price_id, promo_valor_mensal_locacao, starts_on, ends_on");
+    if (error) throw new Error(error.message);
+    return (data ?? []) as CarPricePromotion[];
+  },
+
+  getCarPricePromotionByCarPriceId: async (carPriceId: string): Promise<CarPricePromotion | null> => {
+    const { data, error } = await supabase
+      .from("car_price_promotions")
+      .select("id, car_price_id, promo_valor_mensal_locacao, starts_on, ends_on")
+      .eq("car_price_id", carPriceId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as CarPricePromotion) ?? null;
+  },
+
+  upsertCarPricePromotion: async (d: {
+    car_price_id: string;
+    promo_valor_mensal_locacao: number;
+    starts_on: string;
+    ends_on: string;
+  }): Promise<void> => {
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("car_price_promotions").upsert(
+      {
+        car_price_id: d.car_price_id,
+        promo_valor_mensal_locacao: d.promo_valor_mensal_locacao,
+        starts_on: d.starts_on,
+        ends_on: d.ends_on,
+        updated_at: now,
+      },
+      { onConflict: "car_price_id" },
+    );
+    if (error) throw new Error(error.message);
+    await auditLog("car_price_promotion_upsert", `Promoção car_price_id=${d.car_price_id}`);
+  },
+
+  deleteCarPricePromotion: async (carPriceId: string): Promise<void> => {
+    const { error } = await supabase.from("car_price_promotions").delete().eq("car_price_id", carPriceId);
+    if (error) throw new Error(error.message);
+    await auditLog("car_price_promotion_delete", `Removeu promoção car_price_id=${carPriceId}`);
+  },
+
+  /** Promoções ativas com nome do carro (banner do site). */
+  getHeroPromoSnippets: async (): Promise<HeroPromoSnippet[]> => {
+    const { data, error } = await supabaseIsolated.from("car_price_promotions").select(`
+      promo_valor_mensal_locacao,
+      car_prices ( marca, nome_carro, modelo_carro )
+    `);
+    if (error) {
+      console.warn("[getHeroPromoSnippets]", error.message);
+      return [];
+    }
+    const out: HeroPromoSnippet[] = [];
+    for (const row of (data ?? []) as {
+      promo_valor_mensal_locacao: number | string;
+      car_prices: { marca?: string; nome_carro?: string; modelo_carro?: string } | null;
+    }[]) {
+      const c = row.car_prices;
+      if (!c) continue;
+      const name = [c.marca, (c.nome_carro || c.modelo_carro || "").trim()].filter(Boolean).join(" ").trim();
+      if (!name) continue;
+      const n = typeof row.promo_valor_mensal_locacao === "number"
+        ? row.promo_valor_mensal_locacao
+        : parseFloat(String(row.promo_valor_mensal_locacao).replace(",", "."));
+      if (!Number.isFinite(n) || n <= 0) continue;
+      out.push({
+        carDisplayName: name,
+        formattedPromoPrice: n.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+          minimumFractionDigits: 0,
+        }),
+      });
+    }
+    return out;
   },
 
   /* Testimonials (Depoimentos) */
