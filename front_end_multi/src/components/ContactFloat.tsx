@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { MessageCircle } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
@@ -8,12 +8,30 @@ import { useLogo } from "@/hooks/useLogo";
 const N8N_CHAT_TARGET_ID = "n8n-chat-root";
 const LOGO_FALLBACK = "/logo-multi.svg";
 
+function isChatWindowOpen(): boolean {
+  const root = document.getElementById(N8N_CHAT_TARGET_ID);
+  if (!root) return false;
+  const chatWindow = root.querySelector(".chat-window");
+  if (!chatWindow) return false;
+  const rect = chatWindow.getBoundingClientRect();
+  const style = window.getComputedStyle(chatWindow);
+  return rect.width > 50 && rect.height > 50 && style.visibility !== "hidden" && style.display !== "none";
+}
+
+function closeChatWindow(): void {
+  const root = document.getElementById(N8N_CHAT_TARGET_ID);
+  if (!root) return;
+  const toggle = root.querySelector(".chat-window-toggle");
+  if (toggle) (toggle as HTMLElement).click();
+}
+
 const ContactFloat = () => {
   const location = useLocation();
   const { whatsappUrl } = useSiteSettings();
   const { config, showBot, isMobile } = useBotConfig();
   const { logoUrl } = useLogo();
   const chatInitialized = useRef(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const isHidden = location.pathname.startsWith("/admin") || location.pathname === "/campanha";
 
@@ -83,28 +101,23 @@ const ContactFloat = () => {
     return () => window.removeEventListener("open-contact-bot", handler);
   }, []);
 
-  // Fechar o chat ao clicar fora (não abre ao clicar fora — só o ícone abre)
+  // Detectar quando o chat está aberto (polling) para exibir overlay
   useEffect(() => {
-    if (!showBot) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      const root = document.getElementById(N8N_CHAT_TARGET_ID);
-      if (!root || root.contains(e.target as Node)) return;
-
-      const chatWindow = root.querySelector(".chat-window");
-      if (!chatWindow) return;
-
-      const rect = chatWindow.getBoundingClientRect();
-      const isOpen = rect.width > 20 && rect.height > 20;
-      if (!isOpen) return;
-
-      const toggle = root.querySelector(".chat-window-toggle, button");
-      if (toggle) (toggle as HTMLElement).click();
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    if (!showBot) {
+      setChatOpen(false);
+      return;
+    }
+    const interval = setInterval(() => {
+      setChatOpen(isChatWindowOpen());
+    }, 200);
+    return () => clearInterval(interval);
   }, [showBot]);
+
+  // Fechar ao clicar fora: overlay transparente cobre a tela; clique fecha
+  const handleOverlayClick = () => {
+    closeChatWindow();
+    setChatOpen(false);
+  };
 
   if (isHidden) return null;
 
@@ -130,6 +143,14 @@ const ContactFloat = () => {
 
   return (
     <>
+      {/* Overlay transparente: ao clicar fora do bot, fecha */}
+      {chatOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-transparent"
+          aria-hidden="true"
+          onClick={handleOverlayClick}
+        />
+      )}
       <style>{`
         #${N8N_CHAT_TARGET_ID} {
           --chat--color--primary: ${primaryColor};

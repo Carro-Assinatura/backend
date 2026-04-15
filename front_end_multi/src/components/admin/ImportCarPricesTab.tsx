@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/services/api";
+import { api, type CarPrice } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,9 @@ import {
   parseExcelFileRaw,
   parseWithMapping,
   buildMappingsFromSheets,
+  deduplicateCarPriceRows,
   DB_COLUMN_LABELS,
+  FILTER_FIELD_OPTIONS,
   CATEGORIAS,
   type SheetData,
   type SheetColumnMapping,
@@ -27,6 +29,8 @@ import {
   ChevronRight,
   ArrowRight,
   HelpCircle,
+  Pencil,
+  Search,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCarSource } from "@/hooks/useCarSource";
@@ -51,6 +55,8 @@ import {
 
 const DB_COLUMNS = Object.keys(DB_COLUMN_LABELS) as DbColumnKey[];
 
+const PAGE_SIZE_OPTIONS = [10, 50, 100] as const;
+
 const ImportCarPricesTab = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -71,6 +77,49 @@ const ImportCarPricesTab = () => {
   const [unknownCategoriasOpen, setUnknownCategoriasOpen] = useState(false);
   const [categoriaInputs, setCategoriaInputs] = useState<Record<string, string>>({});
   const [savingCategorias, setSavingCategorias] = useState(false);
+
+  /* Carros importados: filtro, paginação, edição */
+  const [filterMarca, setFilterMarca] = useState("");
+  const [filterNome, setFilterNome] = useState("");
+  const [filterModelo, setFilterModelo] = useState("");
+  const [filterFranquia, setFilterFranquia] = useState("");
+  const [filterPrazo, setFilterPrazo] = useState("");
+  const [filterApplied, setFilterApplied] = useState(false);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [editingCar, setEditingCar] = useState<CarPrice | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const { data: importSettings } = useQuery({
+    queryKey: ["import-settings"],
+    queryFn: () => api.getImportSettings(),
+    staleTime: 60 * 1000,
+  });
+
+  const filterParams = filterApplied
+    ? {
+        marca: filterMarca || undefined,
+        nome_carro: filterNome || undefined,
+        modelo_carro: filterModelo || undefined,
+        franquia_km_mes: filterFranquia || undefined,
+        prazo_contrato: filterPrazo || undefined,
+      }
+    : {};
+
+  const { data: importedCarsData, refetch: refetchImported } = useQuery({
+    queryKey: ["car-prices-admin", currentPage, pageSize, filterParams],
+    queryFn: () =>
+      api.getCarPrices({
+        limit: pageSize,
+        offset: currentPage * pageSize,
+        ...filterParams,
+      }),
+    staleTime: 30 * 1000,
+  });
+
+  const importedCars = importedCarsData?.rows ?? [];
+  const importedTotal = importedCarsData?.total ?? 0;
+  const totalPages = Math.ceil(importedTotal / pageSize);
 
   const { data: learnedBrands = new Map<string, string>() } = useQuery({
     queryKey: ["car-brand-mappings"],
@@ -288,19 +337,11 @@ const ImportCarPricesTab = () => {
       if (unknownCategorias.some((n) => categoriaInputs[n]?.trim())) {
         await queryClient.invalidateQueries({ queryKey: ["car-category-mappings"] });
       }
-      const uniqueCars = new Map<string, { marca: string; nome_carro: string }>();
-      for (const r of parsedRows) {
-        const marca = (r.marca ?? "").trim();
-        const nome = (r.nome_carro ?? "").trim();
-        if (!nome) continue;
-        const key = `${marca.toLowerCase()}|${nome.toLowerCase()}`;
-        if (!uniqueCars.has(key)) uniqueCars.set(key, { marca, nome_carro: nome });
-      }
-      for (const { marca, nome_carro } of uniqueCars.values()) {
-        await api.deleteCarPricesByCar(marca, nome_carro);
-      }
-      const count = await api.insertCarPrices(
-        parsedRows.map((r) => ({
+      const dupFields = importSettings?.duplicate_fields ?? ["nome_carro", "franquia_km_mes", "prazo_contrato"];
+      const keepHighest = (importSettings?.duplicate_preference ?? "maior") === "maior";
+      const deduplicated = deduplicateCarPriceRows(parsedRows, dupFields, keepHighest);
+      const { inserted, updated } = await api.upsertCarPrices(
+        deduplicated.map((r) => ({
           marca: r.marca,
           nome_carro: r.nome_carro,
           modelo_carro: r.modelo_carro,
@@ -317,16 +358,19 @@ const ImportCarPricesTab = () => {
           valor_mensal_locacao: r.valor_mensal_locacao,
           source_sheet: r.source_sheet,
           source_row: r.source_row,
-        }))
+        })),
+        dupFields
       );
+      const count = inserted + updated;
       await queryClient.invalidateQueries({ queryKey: ["cars-for-site"] });
       if (carSource !== "importar") {
         await setCarSource("importar");
       }
       toast({
         title: "Importação concluída",
-        description: `${count} registro(s) inserido(s). Os carros aparecem em Modelos Disponíveis no site.`,
+        description: `${inserted} novo(s), ${updated} atualizado(s). Os carros aparecem em Modelos Disponíveis no site.`,
       });
+      refetchImported();
       setSheets([]);
       setFile(null);
     } catch (err) {
@@ -345,6 +389,7 @@ const ImportCarPricesTab = () => {
       await api.deleteAllCarPrices();
       toast({ title: "Excluído", description: "Todos os preços importados foram removidos." });
       setDeleteAllOpen(false);
+      refetchImported();
     } catch (err) {
       toast({
         title: "Erro",
@@ -354,8 +399,228 @@ const ImportCarPricesTab = () => {
     }
   };
 
+  const filterFields = importSettings?.filter_fields ?? ["marca", "nome_carro", "modelo_carro", "franquia_km_mes", "prazo_contrato"];
+
+  const handleSaveEdit = async () => {
+    if (!editingCar) return;
+    setSavingEdit(true);
+    try {
+      await api.updateCarPrice(editingCar.id, {
+        marca: editingCar.marca,
+        nome_carro: editingCar.nome_carro,
+        modelo_carro: editingCar.modelo_carro,
+        categoria: editingCar.categoria,
+        prazo_contrato: editingCar.prazo_contrato,
+        franquia_km_mes: editingCar.franquia_km_mes,
+        tipo_pintura: editingCar.tipo_pintura,
+        troca_pneus: editingCar.troca_pneus,
+        manutencao: editingCar.manutencao,
+        seguro: editingCar.seguro,
+        carro_reserva: editingCar.carro_reserva,
+        insulfilm: editingCar.insulfilm,
+        valor_km_excedido: editingCar.valor_km_excedido,
+        valor_mensal_locacao: editingCar.valor_mensal_locacao,
+      });
+      toast({ title: "Salvo", description: "Registro atualizado com sucesso." });
+      setEditingCar(null);
+      refetchImported();
+      queryClient.invalidateQueries({ queryKey: ["cars-for-site"] });
+    } catch (err) {
+      toast({
+        title: "Erro",
+        description: err instanceof Error ? err.message : "Não foi possível salvar.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Carros já importados */}
+      <div className="bg-white rounded-xl border overflow-hidden">
+        <div className="px-4 py-3 border-b bg-slate-50">
+          <h3 className="font-semibold text-slate-800">Carros importados</h3>
+          <p className="text-sm text-slate-500 mt-1">
+            Lista de carros já importados. Use o filtro e clique em Pesquisar para refinar.
+          </p>
+        </div>
+        <div className="p-4 border-b bg-slate-50/50">
+          <div className="flex flex-wrap items-end gap-3">
+            {filterFields.includes("marca") && (
+              <div>
+                <Label className="text-xs text-slate-600">Marca</Label>
+                <Input
+                  placeholder="Filtrar marca"
+                  value={filterMarca}
+                  onChange={(e) => setFilterMarca(e.target.value)}
+                  className="mt-1 w-36"
+                />
+              </div>
+            )}
+            {filterFields.includes("nome_carro") && (
+              <div>
+                <Label className="text-xs text-slate-600">Nome</Label>
+                <Input
+                  placeholder="Filtrar nome"
+                  value={filterNome}
+                  onChange={(e) => setFilterNome(e.target.value)}
+                  className="mt-1 w-40"
+                />
+              </div>
+            )}
+            {filterFields.includes("modelo_carro") && (
+              <div>
+                <Label className="text-xs text-slate-600">Modelo</Label>
+                <Input
+                  placeholder="Filtrar modelo"
+                  value={filterModelo}
+                  onChange={(e) => setFilterModelo(e.target.value)}
+                  className="mt-1 w-40"
+                />
+              </div>
+            )}
+            {filterFields.includes("franquia_km_mes") && (
+              <div>
+                <Label className="text-xs text-slate-600">Franquia km/mês</Label>
+                <Input
+                  placeholder="Ex: 1500"
+                  value={filterFranquia}
+                  onChange={(e) => setFilterFranquia(e.target.value)}
+                  className="mt-1 w-28"
+                />
+              </div>
+            )}
+            {filterFields.includes("prazo_contrato") && (
+              <div>
+                <Label className="text-xs text-slate-600">Prazo contrato</Label>
+                <Input
+                  placeholder="Ex: 12"
+                  value={filterPrazo}
+                  onChange={(e) => setFilterPrazo(e.target.value)}
+                  className="mt-1 w-28"
+                />
+              </div>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setFilterApplied(true);
+                setCurrentPage(0);
+              }}
+            >
+              <Search size={14} className="mr-1" />
+              Pesquisar
+            </Button>
+            {(filterMarca || filterNome || filterModelo || filterFranquia || filterPrazo) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setFilterMarca("");
+                  setFilterNome("");
+                  setFilterModelo("");
+                  setFilterFranquia("");
+                  setFilterPrazo("");
+                  setFilterApplied(false);
+                  setCurrentPage(0);
+                }}
+              >
+                Limpar
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="p-4 flex items-center justify-between border-b">
+          <div className="flex items-center gap-3">
+            <Label className="text-sm text-slate-600">Linhas por página</Label>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(0);
+              }}
+              className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            >
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+          <span className="text-sm text-slate-500">
+            {importedTotal} registro(s)
+            {totalPages > 1 && ` • Página ${currentPage + 1} de ${totalPages}`}
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-max">
+            <thead className="bg-slate-100">
+              <tr>
+                <th className="text-left px-3 py-2 font-medium">Marca</th>
+                <th className="text-left px-3 py-2 font-medium">Nome</th>
+                <th className="text-left px-3 py-2 font-medium">Modelo</th>
+                <th className="text-left px-3 py-2 font-medium">Franquia</th>
+                <th className="text-left px-3 py-2 font-medium">Prazo</th>
+                <th className="text-left px-3 py-2 font-medium">Valor Mensal</th>
+                <th className="text-left px-3 py-2 font-medium w-20">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {importedCars.map((car) => (
+                <tr key={car.id} className="border-t border-slate-100 hover:bg-slate-50">
+                  <td className="px-3 py-2">{car.marca || "—"}</td>
+                  <td className="px-3 py-2 font-medium">{car.nome_carro || "—"}</td>
+                  <td className="px-3 py-2">{car.modelo_carro || "—"}</td>
+                  <td className="px-3 py-2">{car.franquia_km_mes ?? "—"}</td>
+                  <td className="px-3 py-2">{car.prazo_contrato ?? "—"}</td>
+                  <td className="px-3 py-2">{car.valor_mensal_locacao != null ? String(car.valor_mensal_locacao) : "—"}</td>
+                  <td className="px-3 py-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2"
+                      onClick={() => setEditingCar({ ...car })}
+                    >
+                      <Pencil size={14} className="mr-1" />
+                      Editar
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {importedCars.length === 0 && (
+          <div className="p-8 text-center text-slate-500 text-sm">
+            Nenhum carro importado. Importe uma planilha abaixo.
+          </div>
+        )}
+        {totalPages > 1 && (
+          <div className="p-3 border-t flex justify-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 0}
+              onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages - 1}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+            >
+              Próxima
+            </Button>
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold text-slate-900">Importar planilha de preços</h2>
@@ -687,6 +952,87 @@ const ImportCarPricesTab = () => {
             <Button onClick={handleSaveMarcas} disabled={savingMarcas}>
               {savingMarcas ? <Loader2 size={16} className="animate-spin mr-1" /> : null}
               Salvar e continuar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Editar carro */}
+      <Dialog open={!!editingCar} onOpenChange={(open) => !open && setEditingCar(null)}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar carro</DialogTitle>
+            <DialogDescription>Altere os dados e clique em Salvar.</DialogDescription>
+          </DialogHeader>
+          {editingCar && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Marca</Label>
+                  <Input
+                    value={editingCar.marca ?? ""}
+                    onChange={(e) => setEditingCar((c) => (c ? { ...c, marca: e.target.value } : null))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Nome do Carro</Label>
+                  <Input
+                    value={editingCar.nome_carro ?? ""}
+                    onChange={(e) => setEditingCar((c) => (c ? { ...c, nome_carro: e.target.value } : null))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Modelo</Label>
+                  <Input
+                    value={editingCar.modelo_carro ?? ""}
+                    onChange={(e) => setEditingCar((c) => (c ? { ...c, modelo_carro: e.target.value } : null))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Categoria</Label>
+                  <Input
+                    value={editingCar.categoria ?? ""}
+                    onChange={(e) => setEditingCar((c) => (c ? { ...c, categoria: e.target.value } : null))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Franquia km/mês</Label>
+                  <Input
+                    value={editingCar.franquia_km_mes ?? ""}
+                    onChange={(e) => setEditingCar((c) => (c ? { ...c, franquia_km_mes: e.target.value } : null))}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label>Prazo contrato</Label>
+                  <Input
+                    value={editingCar.prazo_contrato ?? ""}
+                    onChange={(e) => setEditingCar((c) => (c ? { ...c, prazo_contrato: e.target.value } : null))}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label>Valor mensal</Label>
+                  <Input
+                    value={editingCar.valor_mensal_locacao ?? ""}
+                    onChange={(e) => setEditingCar((c) => (c ? { ...c, valor_mensal_locacao: e.target.value } : null))}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingCar(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={savingEdit || !editingCar}>
+              {savingEdit ? <Loader2 size={16} className="animate-spin mr-1" /> : null}
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>

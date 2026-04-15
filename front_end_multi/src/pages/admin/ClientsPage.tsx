@@ -5,7 +5,9 @@ import { api, Client, ClientDocument, ClientTrackingEvent } from "@/services/api
 import {
   Plus, Search, Pencil, Trash2, ChevronLeft, ChevronRight,
   User, Building2, FileText, Eye, Upload, Download, X, Save, Activity,
+  MessageSquareQuote,
 } from "lucide-react";
+import ClientTestimonialsTab from "@/components/admin/ClientTestimonialsTab";
 
 const FUNNEL_LABELS: Record<string, string> = {
   visitante: "Visitante",
@@ -410,6 +412,9 @@ function ClientDetail({ client: initial, onBack }: { client: Client; onBack: () 
           </TabsTrigger>
           <TabsTrigger value="credito">Crédito</TabsTrigger>
           <TabsTrigger value="contrato">Contrato</TabsTrigger>
+          <TabsTrigger value="depoimentos" className="gap-1">
+            <MessageSquareQuote size={14} /> Depoimentos
+          </TabsTrigger>
           <TabsTrigger value="tracking">Tracking ({events.length})</TabsTrigger>
         </TabsList>
 
@@ -514,6 +519,10 @@ function ClientDetail({ client: initial, onBack }: { client: Client; onBack: () 
               })()} />
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="depoimentos" className="bg-white rounded-lg border p-6 mt-4">
+          <ClientTestimonialsTab clientId={client.id} />
         </TabsContent>
 
         <TabsContent value="documentos" className="bg-white rounded-lg border p-6 mt-4 space-y-4">

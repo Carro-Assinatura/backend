@@ -7,16 +7,18 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Save, CheckCircle, AlertTriangle, Eye, EyeOff, Upload, Trash2, ImageIcon, Settings2, Users, Map } from "lucide-react";
 import { LOGO_KEY } from "@/hooks/useLogo";
+import { FAVICON_KEY } from "@/hooks/useFavicon";
 import { useAuth } from "@/contexts/AuthContext";
 import UserCategoriesTab from "@/components/admin/UserCategoriesTab";
 import SiteMapTab from "@/components/admin/SiteMapTab";
+import ImportSettingsTab from "@/components/admin/ImportSettingsTab";
 
 const CATEGORY_LABELS: Record<string, string> = {
   contato: "Contato / WhatsApp",
-  geral: "Geral",
+  geral: "Informações",
 };
 
-const HIDDEN_CATEGORIES = new Set(["colunas", "google_sheets", "imagens"]);
+const HIDDEN_CATEGORIES = new Set(["colunas", "google_sheets", "imagens", "importacao"]);
 
 const SECRET_KEYS = new Set(["google_sheets_api_key", "removebg_api_key"]);
 
@@ -37,6 +39,11 @@ const SettingsPage = () => {
   const [logoUploading, setLogoUploading] = useState(false);
   const logoFileRef = useRef<HTMLInputElement>(null);
 
+  /* Favicon */
+  const [favicon, setFavicon] = useState<CarImage | null>(null);
+  const [faviconUploading, setFaviconUploading] = useState(false);
+  const faviconFileRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     api
       .getSettings()
@@ -46,6 +53,7 @@ const SettingsPage = () => {
 
     api.getCarImages().then((imgs) => {
       setLogo(imgs.find((i) => i.car_name === LOGO_KEY) ?? null);
+      setFavicon(imgs.find((i) => i.car_name === FAVICON_KEY) ?? null);
     });
   }, []);
 
@@ -88,6 +96,48 @@ const SettingsPage = () => {
       setTimeout(() => setSaved(false), 3000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erro ao remover logo");
+    }
+  };
+
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFaviconUploading(true);
+    setError("");
+    try {
+      const url = await api.uploadCarPhoto(file);
+      if (favicon) {
+        await api.updateCarImage(favicon.id, { image_url: url });
+      } else {
+        await api.createCarImage({ car_name: FAVICON_KEY, image_url: url });
+      }
+      const imgs = await api.getCarImages();
+      setFavicon(imgs.find((i) => i.car_name === FAVICON_KEY) ?? null);
+      queryClient.invalidateQueries({ queryKey: ["site-favicon"] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erro ao enviar favicon");
+    } finally {
+      setFaviconUploading(false);
+      if (faviconFileRef.current) faviconFileRef.current.value = "";
+    }
+  };
+
+  const handleFaviconRemove = async () => {
+    if (!favicon) return;
+    setError("");
+    try {
+      if (favicon.image_url.includes("/car-images/")) {
+        await api.deleteCarPhoto(favicon.image_url);
+      }
+      await api.deleteCarImage(favicon.id, FAVICON_KEY);
+      setFavicon(null);
+      queryClient.invalidateQueries({ queryKey: ["site-favicon"] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erro ao remover favicon");
     }
   };
 
@@ -182,58 +232,67 @@ const SettingsPage = () => {
           </p>
 
           <div className="flex items-start gap-6">
-            {/* Preview */}
             <div className="w-48 h-28 rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0">
               {logo?.image_url ? (
-                <img
-                  src={logo.image_url}
-                  alt="Logo da empresa"
-                  className="max-w-full max-h-full object-contain p-2"
-                />
+                <img src={logo.image_url} alt="Logo da empresa" className="max-w-full max-h-full object-contain p-2" />
               ) : (
                 <ImageIcon className="text-slate-300" size={36} />
               )}
             </div>
-
-            {/* Actions */}
             <div className="flex flex-col gap-3">
-              <input
-                ref={logoFileRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                className="hidden"
-                onChange={handleLogoUpload}
-              />
-              <Button
-                variant="outline"
-                onClick={() => logoFileRef.current?.click()}
-                disabled={logoUploading}
-              >
-                {logoUploading ? (
-                  <Loader2 className="animate-spin mr-2" size={16} />
-                ) : (
-                  <Upload className="mr-2" size={16} />
-                )}
+              <input ref={logoFileRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={handleLogoUpload} />
+              <Button variant="outline" onClick={() => logoFileRef.current?.click()} disabled={logoUploading}>
+                {logoUploading ? <Loader2 className="animate-spin mr-2" size={16} /> : <Upload className="mr-2" size={16} />}
                 {logo ? "Trocar Logo" : "Enviar Logo"}
               </Button>
               {logo && (
-                <Button
-                  variant="ghost"
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                  onClick={handleLogoRemove}
-                >
-                  <Trash2 className="mr-2" size={16} />
-                  Remover Logo
+                <Button variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={handleLogoRemove}>
+                  <Trash2 className="mr-2" size={16} /> Remover Logo
                 </Button>
               )}
-              <p className="text-xs text-slate-400">
-                PNG, JPG, WebP ou SVG. Recomendado: fundo transparente.
-              </p>
+              <p className="text-xs text-slate-400">PNG, JPG, WebP ou SVG. Recomendado: fundo transparente.</p>
+            </div>
+          </div>
+
+          {/* Favicon */}
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <h3 className="text-base font-medium text-slate-800 mb-2">Favicon</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Ícone exibido na aba do navegador e nos favoritos. Formatos aceitos: ICO, PNG ou SVG. Tamanho recomendado: 32×32 ou 48×48 pixels. Tamanho máximo: 1 MB.
+            </p>
+            <div className="flex items-start gap-6">
+              <div className="w-16 h-16 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {favicon?.image_url ? (
+                  <img src={favicon.image_url} alt="Favicon" className="max-w-full max-h-full object-contain p-1" />
+                ) : (
+                  <ImageIcon className="text-slate-300" size={24} />
+                )}
+              </div>
+              <div className="flex flex-col gap-3">
+                <input ref={faviconFileRef} type="file" accept="image/x-icon,image/png,image/svg+xml,.ico" className="hidden" onChange={handleFaviconUpload} />
+                <Button variant="outline" size="sm" onClick={() => faviconFileRef.current?.click()} disabled={faviconUploading}>
+                  {faviconUploading ? <Loader2 className="animate-spin mr-2" size={14} /> : <Upload className="mr-2" size={14} />}
+                  {favicon ? "Alterar Favicon" : "Inserir Favicon"}
+                </Button>
+                {favicon && (
+                  <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={handleFaviconRemove}>
+                    <Trash2 className="mr-2" size={14} /> Excluir Favicon
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {Object.entries(grouped).map(([category, items]) => (
+        {/* Importação (dentro da aba Geral) */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <ImportSettingsTab />
+        </div>
+
+        {["contato", "geral"].map((category) => {
+          const items = grouped[category];
+          if (!items?.length) return null;
+          return (
           <div key={category} className="bg-white rounded-xl border border-slate-200 p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-5">
               {CATEGORY_LABELS[category] || category}
@@ -242,7 +301,6 @@ const SettingsPage = () => {
               {items.map((item) => {
                 const isSecret = SECRET_KEYS.has(item.key);
                 const isVisible = visibleSecrets.has(item.key);
-
                 return (
                   <div key={item.key}>
                     <Label htmlFor={item.key} className="text-sm font-medium text-slate-700">
@@ -257,11 +315,7 @@ const SettingsPage = () => {
                         className={item.key in dirty ? "border-blue-400 ring-1 ring-blue-200" : ""}
                       />
                       {isSecret && (
-                        <button
-                          type="button"
-                          onClick={() => toggleSecret(item.key)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                        >
+                        <button type="button" onClick={() => toggleSecret(item.key)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                           {isVisible ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       )}
@@ -274,7 +328,8 @@ const SettingsPage = () => {
               })}
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
 
       {hasDirty && (

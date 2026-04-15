@@ -427,3 +427,63 @@ export function parseExcelFile(file: File): Promise<{ rows: ParsedCarPriceRow[];
     };
   });
 }
+
+/** Campos disponíveis para chave de duplicidade */
+export const DUPLICATE_FIELD_OPTIONS: { key: DbColumnKey; label: string }[] = [
+  { key: "marca", label: "Marca" },
+  { key: "nome_carro", label: "Nome do Carro" },
+  { key: "modelo_carro", label: "Modelo do Carro" },
+  { key: "franquia_km_mes", label: "Franquia km/mês" },
+  { key: "prazo_contrato", label: "Prazo de Contrato" },
+];
+
+/** Campos disponíveis para filtro */
+export const FILTER_FIELD_OPTIONS = [...DUPLICATE_FIELD_OPTIONS];
+
+function parseValorMensal(v: string | number | null | undefined): number {
+  if (v == null || v === "") return 0;
+  if (typeof v === "number") return isNaN(v) ? 0 : v;
+  const cleaned = String(v).replace(/[R$\s.]/g, "").replace(",", ".");
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? 0 : n;
+}
+
+/**
+ * Remove duplicatas: mesmo modelo, franquia, prazo → mantém o de maior ou menor valor mensal.
+ * @param rows Linhas parseadas
+ * @param duplicateFields Campos que formam a chave de igualdade (ex: nome_carro, franquia_km_mes, prazo_contrato)
+ * @param keepHighest true = manter maior valor, false = manter menor valor
+ */
+export function deduplicateCarPriceRows<T extends ParsedCarPriceRow>(
+  rows: T[],
+  duplicateFields: string[],
+  keepHighest: boolean
+): T[] {
+  if (rows.length === 0 || duplicateFields.length === 0) return rows;
+
+  const buildKey = (r: T) =>
+    duplicateFields
+      .map((f) => String((r as Record<string, unknown>)[f] ?? "").trim().toLowerCase())
+      .join("|");
+
+  const byKey = new Map<string, T[]>();
+  for (const r of rows) {
+    const key = buildKey(r);
+    if (!key) continue;
+    const list = byKey.get(key) ?? [];
+    list.push(r);
+    byKey.set(key, list);
+  }
+
+  const result: T[] = [];
+  for (const list of byKey.values()) {
+    const sorted = [...list].sort((a, b) => {
+      const va = parseValorMensal(a.valor_mensal_locacao);
+      const vb = parseValorMensal(b.valor_mensal_locacao);
+      return keepHighest ? vb - va : va - vb;
+    });
+    result.push(sorted[0]);
+  }
+
+  return result;
+}

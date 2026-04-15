@@ -16,7 +16,6 @@ import {
   Radar,
   UserSearch,
   Bot,
-  MessageSquareQuote,
   Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -51,7 +50,6 @@ const AdminLayout = () => {
     { to: "/admin/spreadsheets", icon: FileSpreadsheet, label: "Planilhas", end: false, permissionKey: "menu_planilhas", minRole: "gerente", group: "Comercial" },
     // CONFIGURAÇÕES (Conf Bot, Depoimentos, Geral, Usuários)
     { to: "/admin/bot-config", icon: Bot, label: "Conf Bot", end: false, permissionKey: "menu_bot_config", minRole: "gerente", group: "Configurações" },
-    { to: "/admin/testimonials", icon: MessageSquareQuote, label: "Depoimentos", end: false, permissionKey: "menu_testimonials", minRole: "marketing", group: "Configurações" },
     { to: "/admin/settings", icon: Settings, label: "Geral", end: false, permissionKey: "menu_settings", minRole: "gerente", group: "Configurações" },
     { to: "/admin/users", icon: Users, label: "Usuários", end: false, permissionKey: "menu_users", minRole: "admin", group: "Configurações" },
     // DASHBOARD (Fin Camp, Visão Geral)
@@ -73,11 +71,11 @@ const AdminLayout = () => {
     <div className="min-h-screen bg-slate-50 flex">
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 lg:bg-black/20 pointer-events-none"
+          className="fixed inset-0 z-40 bg-transparent lg:hidden"
           aria-hidden="true"
+          onClick={() => setSidebarOpen(false)}
         />
       )}
-
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform transition-transform duration-300 ease-out ${
           sidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"

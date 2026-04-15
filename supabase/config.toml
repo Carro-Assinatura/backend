@@ -1,0 +1,7 @@
+# Configuração do Supabase (para deploy de Edge Functions)
+# Use: supabase link --project-ref SEU_PROJECT_ID
+# Depois: supabase functions deploy upload-client-doc
+
+[functions.upload-client-doc]
+# Permite chamada com anon key (visitantes do cadastro público)
+verify_jwt = true

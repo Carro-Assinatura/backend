@@ -92,7 +92,7 @@ const SITE_MAP_ROOT: SiteMapNode = {
         { id: "tracking", label: "Tracking", path: "/admin/tracking", icon: Radar },
         { id: "bot-config", label: "Config Bot", path: "/admin/bot-config", icon: Bot },
         { id: "clientes", label: "Clientes", path: "/admin/clients", icon: UserSearch },
-        { id: "depoimentos-admin", label: "Depoimentos", path: "/admin/testimonials", icon: MessageSquareQuote },
+        { id: "depoimentos-admin", label: "Depoimentos (em Clientes)", path: "/admin/clients", icon: MessageSquareQuote },
         {
           id: "configuracoes",
           label: "Configurações",

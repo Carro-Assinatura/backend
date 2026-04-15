@@ -1189,15 +1189,92 @@ export const api = {
   },
 
   /* Car Prices (Importação de planilhas) */
-  getCarPrices: async (opts?: { limit?: number; offset?: number }): Promise<{ rows: CarPrice[]; total: number }> => {
-    const { limit = 100, offset = 0 } = opts ?? {};
-    const { data, error, count } = await supabase
+  getCarPrices: async (opts?: {
+    limit?: number;
+    offset?: number;
+    marca?: string;
+    nome_carro?: string;
+    modelo_carro?: string;
+    franquia_km_mes?: string;
+    prazo_contrato?: string;
+  }): Promise<{ rows: CarPrice[]; total: number }> => {
+    const { limit = 100, offset = 0, marca, nome_carro, modelo_carro, franquia_km_mes, prazo_contrato } = opts ?? {};
+    let query = supabase
       .from("car_prices")
       .select("*", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
+    if (marca?.trim()) query = query.ilike("marca", `%${marca.trim()}%`);
+    if (nome_carro?.trim()) query = query.ilike("nome_carro", `%${nome_carro.trim()}%`);
+    if (modelo_carro?.trim()) query = query.ilike("modelo_carro", `%${modelo_carro.trim()}%`);
+    if (franquia_km_mes?.trim()) {
+      const n = parseInt(franquia_km_mes.trim(), 10);
+      if (!isNaN(n)) query = query.eq("franquia_km_mes", n);
+    }
+    if (prazo_contrato?.trim()) {
+      const n = parseInt(prazo_contrato.trim(), 10);
+      if (!isNaN(n)) query = query.eq("prazo_contrato", n);
+    }
+    const { data, error, count } = await query;
     if (error) throw new Error(error.message);
     return { rows: data ?? [], total: count ?? 0 };
+  },
+
+  updateCarPrice: async (id: string, d: Partial<Omit<CarPrice, "id" | "created_at" | "updated_at">>): Promise<void> => {
+    const toNum = (v: string | number | null | undefined): number | null => {
+      if (v == null || v === "") return null;
+      if (typeof v === "number") return isNaN(v) ? null : v;
+      const cleaned = String(v).replace(/[R$\s.]/g, "").replace(",", ".");
+      const n = parseFloat(cleaned);
+      return isNaN(n) ? null : n;
+    };
+    const toInt = (v: string | number | null | undefined): number | null => {
+      const n = toNum(v);
+      return n == null ? null : Math.floor(n);
+    };
+    const payload: Record<string, unknown> = { ...d, updated_at: new Date().toISOString() };
+    if (d.prazo_contrato !== undefined) payload.prazo_contrato = toInt(d.prazo_contrato);
+    if (d.franquia_km_mes !== undefined) payload.franquia_km_mes = toInt(d.franquia_km_mes);
+    if (d.valor_mensal_locacao !== undefined) payload.valor_mensal_locacao = toNum(d.valor_mensal_locacao);
+    const { error } = await supabase.from("car_prices").update(payload).eq("id", id);
+    if (error) throw new Error(error.message);
+    await auditLog("car_price_update", `Atualizou preço do carro ${id}`);
+  },
+
+  getImportSettings: async (): Promise<{
+    duplicate_preference: "maior" | "menor";
+    filter_fields: string[];
+    duplicate_fields: string[];
+  }> => {
+    const keys = ["import_duplicate_preference", "import_filter_fields", "import_duplicate_fields"];
+    const { data, error } = await supabase.from("settings").select("key, value").in("key", keys);
+    if (error) throw new Error(error.message);
+    const map = new Map((data ?? []).map((r) => [r.key, r.value]));
+    return {
+      duplicate_preference: (map.get("import_duplicate_preference") ?? "maior") as "maior" | "menor",
+      filter_fields: (map.get("import_filter_fields") ?? "marca,nome_carro,modelo_carro,franquia_km_mes,prazo_contrato").split(",").map((s) => s.trim()).filter(Boolean),
+      duplicate_fields: (map.get("import_duplicate_fields") ?? "nome_carro,franquia_km_mes,prazo_contrato").split(",").map((s) => s.trim()).filter(Boolean),
+    };
+  },
+
+  saveImportSettings: async (settings: {
+    duplicate_preference?: "maior" | "menor";
+    filter_fields?: string[];
+    duplicate_fields?: string[];
+  }): Promise<void> => {
+    const uid = await currentUserId();
+    const now = new Date().toISOString();
+    const toSave: { key: string; value: string }[] = [];
+    if (settings.duplicate_preference) toSave.push({ key: "import_duplicate_preference", value: settings.duplicate_preference });
+    if (settings.filter_fields) toSave.push({ key: "import_filter_fields", value: settings.filter_fields.join(",") });
+    if (settings.duplicate_fields) toSave.push({ key: "import_duplicate_fields", value: settings.duplicate_fields.join(",") });
+    for (const s of toSave) {
+      const { error } = await supabase
+        .from("settings")
+        .upsert({ key: s.key, value: s.value, label: "", category: "importacao", updated_by: uid, updated_at: now }, { onConflict: "key" });
+      if (error) throw new Error(error.message);
+    }
+    await auditLog("import_settings_update", `Atualizou configurações de importação`);
   },
 
   insertCarPrices: async (rows: Omit<CarPrice, "id" | "created_at" | "updated_at">[]): Promise<number> => {
@@ -1224,6 +1301,82 @@ export const api = {
     if (error) throw new Error(error.message);
     await auditLog("car_prices_import", `Importou ${data?.length ?? 0} preços de carros`);
     return data?.length ?? 0;
+  },
+
+  /** Upsert car prices: atualiza existentes (mesma chave) ou insere novos */
+  upsertCarPrices: async (
+    rows: Omit<CarPrice, "id" | "created_at" | "updated_at">[],
+    duplicateFields: string[]
+  ): Promise<{ inserted: number; updated: number }> => {
+    if (rows.length === 0) return { inserted: 0, updated: 0 };
+    const toNum = (v: string | number | null | undefined): number | null => {
+      if (v == null || v === "") return null;
+      if (typeof v === "number") return isNaN(v) ? null : v;
+      const cleaned = String(v).replace(/[R$\s.]/g, "").replace(",", ".");
+      const n = parseFloat(cleaned);
+      return isNaN(n) ? null : n;
+    };
+    const toInt = (v: string | number | null | undefined): number | null => {
+      const n = toNum(v);
+      return n == null ? null : Math.floor(n);
+    };
+    const buildKey = (r: Record<string, unknown>) =>
+      duplicateFields.map((f) => String((r as Record<string, unknown>)[f] ?? "").trim().toLowerCase()).join("|");
+
+    const allExisting: CarPrice[] = [];
+    let offset = 0;
+    const pageSize = 1000;
+    let hasMore = true;
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("car_prices")
+        .select("id, marca, nome_carro, modelo_carro, franquia_km_mes, prazo_contrato")
+        .range(offset, offset + pageSize - 1);
+      if (error) throw new Error(error.message);
+      const page = data ?? [];
+      allExisting.push(...page);
+      hasMore = page.length === pageSize;
+      offset += pageSize;
+    }
+
+    const keyToId = new Map<string, string>();
+    for (const r of allExisting) {
+      const key = buildKey(r);
+      if (key) keyToId.set(key, r.id);
+    }
+
+    let inserted = 0;
+    let updated = 0;
+    const toInsert: Omit<CarPrice, "id" | "created_at" | "updated_at">[] = [];
+
+    for (const r of rows) {
+      const rowKey = buildKey(r);
+      const existingId = rowKey ? keyToId.get(rowKey) : undefined;
+      const payload = {
+        ...r,
+        prazo_contrato: toInt(r.prazo_contrato),
+        franquia_km_mes: toInt(r.franquia_km_mes),
+        valor_mensal_locacao: toNum(r.valor_mensal_locacao),
+        updated_at: new Date().toISOString(),
+      };
+
+      if (existingId) {
+        const { error } = await supabase.from("car_prices").update(payload).eq("id", existingId);
+        if (error) throw new Error(error.message);
+        updated++;
+      } else {
+        toInsert.push(payload);
+      }
+    }
+
+    if (toInsert.length > 0) {
+      const { data, error } = await supabase.from("car_prices").insert(toInsert).select("id");
+      if (error) throw new Error(error.message);
+      inserted = data?.length ?? 0;
+    }
+
+    await auditLog("car_prices_upsert", `Importou: ${inserted} novos, ${updated} atualizados`);
+    return { inserted, updated };
   },
 
   getCarPricesForSite: async (): Promise<CarPrice[]> => {

@@ -18,12 +18,12 @@ import AuditLogPage from "./pages/admin/AuditLogPage.tsx";
 import TrackingPage from "./pages/admin/TrackingPage.tsx";
 import BotConfigPage from "./pages/admin/BotConfigPage.tsx";
 import ClientsPage from "./pages/admin/ClientsPage.tsx";
-import TestimonialsPage from "./pages/admin/TestimonialsPage.tsx";
 import FinCampPage from "./pages/admin/FinCampPage.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import TrackingScripts from "./components/TrackingScripts.tsx";
 import VisitorTracker from "./components/VisitorTracker.tsx";
 import ContactFloat from "./components/ContactFloat.tsx";
+import FaviconSync from "./components/FaviconSync.tsx";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +35,7 @@ const App = () => (
       <ErrorBoundary>
         <BrowserRouter basename={(import.meta.env.BASE_URL ?? "/").replace(/\/$/, "") || ""}>
           <AuthProvider>
+            <FaviconSync />
             <TrackingScripts />
             <VisitorTracker />
             <Routes>
@@ -50,7 +51,6 @@ const App = () => (
               <Route path="tracking" element={<TrackingPage />} />
               <Route path="bot-config" element={<BotConfigPage />} />
               <Route path="clients" element={<ClientsPage />} />
-              <Route path="testimonials" element={<TestimonialsPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="logs" element={<AuditLogPage />} />
