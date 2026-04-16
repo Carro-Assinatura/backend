@@ -40,13 +40,26 @@ const App = () => (
       {!isSupabaseConfigured && (
         <div
           role="alert"
-          className="fixed top-0 left-0 right-0 z-[9999] bg-amber-500 px-4 py-2 text-center text-sm font-medium text-amber-950 shadow-md"
+          className="fixed top-0 left-0 right-0 z-[9999] max-h-[min(50vh,100%)] overflow-y-auto bg-amber-500 px-4 py-3 text-left text-sm font-medium text-amber-950 shadow-md sm:text-center"
         >
-          Variáveis{" "}
-          <code className="rounded bg-amber-600/30 px-1">VITE_SUPABASE_URL</code> e{" "}
-          <code className="rounded bg-amber-600/30 px-1">VITE_SUPABASE_ANON_KEY</code> não entraram neste
-          build. Na Vercel: marque o ambiente <strong>Production</strong>, guarde e faça{" "}
-          <strong>Redeploy</strong> (idealmente sem cache).
+          <p className="font-bold">Supabase não entrou neste build (Vite embute as variáveis na compilação).</p>
+          <p className="mt-2">
+            Na Vercel: <strong>Project → Settings → Environment Variables</strong> — crie{" "}
+            <code className="rounded bg-amber-600/30 px-1">VITE_SUPABASE_URL</code> e{" "}
+            <code className="rounded bg-amber-600/30 px-1">VITE_SUPABASE_ANON_KEY</code> (valores iguais ao
+            Supabase → Settings → API). Marque <strong>Production</strong> (e Preview, se quiser),{" "}
+            <strong>Save</strong>.
+          </p>
+          <p className="mt-2">
+            Depois: <strong>Deployments</strong> → ⋯ no último deploy → <strong>Redeploy</strong> e desative{" "}
+            <strong>Use existing Build Cache</strong>.
+          </p>
+          <p className="mt-2 text-xs opacity-90">
+            Nomes aceitos no build: <code className="rounded bg-amber-600/25 px-1">VITE_SUPABASE_*</code> ou{" "}
+            <code className="rounded bg-amber-600/25 px-1">SUPABASE_URL</code> +{" "}
+            <code className="rounded bg-amber-600/25 px-1">SUPABASE_ANON_KEY</code>. Nos logs do build da Vercel,
+            procure <code className="rounded bg-amber-600/25 px-1">[vite] Supabase</code>.
+          </p>
         </div>
       )}
       <ErrorBoundary>

@@ -16,7 +16,7 @@ const anonKey = isSupabaseConfigured ? rawKey : FALLBACK_KEY;
 
 if (!isSupabaseConfigured) {
   console.warn(
-    "Supabase não está no bundle de produção. Na Vercel: defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para Production, guarde e faça Redeploy (sem cache).",
+    "[Supabase] VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY ausentes no build. Vercel: Settings → Environment Variables → Production + Save → Redeploy sem cache.",
   );
 }
 
