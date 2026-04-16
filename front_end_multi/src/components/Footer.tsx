@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Phone, Instagram, Facebook, Linkedin } from "lucide-react";
+import { MessageCircle, Phone } from "lucide-react";
 import { useState } from "react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { SITE_SOCIAL_FORM_FIELDS } from "@/config/siteSocialLinks";
 
 const Footer = () => {
-  const { whatsappUrl, whatsappBase, whatsappNumber, siteTitle, phoneFormatted } = useSiteSettings();
+  const { whatsappUrl, whatsappBase, whatsappNumber, siteTitle, phoneFormatted, socialUrls } = useSiteSettings();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
 
@@ -59,17 +60,25 @@ const Footer = () => {
                 WhatsApp
               </a>
             </div>
-            <div className="flex gap-3 mt-6">
-              <a href="#" className="w-10 h-10 rounded-full bg-secondary-foreground/10 flex items-center justify-center hover:bg-accent/20 transition-colors" aria-label="Instagram">
-                <Instagram size={18} />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-secondary-foreground/10 flex items-center justify-center hover:bg-accent/20 transition-colors" aria-label="Facebook">
-                <Facebook size={18} />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-secondary-foreground/10 flex items-center justify-center hover:bg-accent/20 transition-colors" aria-label="LinkedIn">
-                <Linkedin size={18} />
-              </a>
-            </div>
+            {SITE_SOCIAL_FORM_FIELDS.some((f) => socialUrls[f.key]) ? (
+              <div className="flex flex-wrap gap-3 mt-6">
+                {SITE_SOCIAL_FORM_FIELDS.filter((f) => socialUrls[f.key]).map((f) => {
+                  const Icon = f.Icon;
+                  return (
+                    <a
+                      key={f.key}
+                      href={socialUrls[f.key]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-10 h-10 rounded-full bg-secondary-foreground/10 flex items-center justify-center hover:bg-accent/20 transition-colors"
+                      aria-label={f.ariaLabel}
+                    >
+                      <Icon size={18} />
+                    </a>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
 
           {/* Quick form */}

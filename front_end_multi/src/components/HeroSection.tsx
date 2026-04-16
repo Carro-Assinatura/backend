@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle, ArrowRight } from "lucide-react";
 import { useContactAction } from "@/hooks/useContactAction";
 import HeroPromotions from "@/components/HeroPromotions";
+import { CarImageLegalCaptionHero } from "@/components/CarImageLegalCaption";
 
 const heroImages = [
   {
@@ -51,6 +52,7 @@ const HeroSection = () => {
           />
         ))}
         <div className="absolute inset-0 bg-hero opacity-70" />
+        <CarImageLegalCaptionHero />
       </div>
 
       <div className="container relative z-10 pt-24 pb-16 md:pt-32 md:pb-24">
@@ -104,7 +106,7 @@ const HeroSection = () => {
             </div>
           </div>
 
-          <HeroPromotions className="w-full max-w-md xl:w-[min(420px,40vw)] xl:flex-shrink-0 flex flex-col items-center justify-center self-center xl:justify-end text-center rounded-2xl border border-primary-foreground/20 bg-primary-foreground/10 px-6 py-8 backdrop-blur-sm min-h-[200px]" />
+          <HeroPromotions className="w-[min(280px,85vw)] shrink-0 flex flex-col self-center xl:self-start xl:ml-auto text-center rounded-2xl border border-primary-foreground/20 bg-primary-foreground/10 backdrop-blur-sm overflow-hidden shadow-card" />
         </div>
       </div>
     </section>

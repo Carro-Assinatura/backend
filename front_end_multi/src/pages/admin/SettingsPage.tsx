@@ -12,13 +12,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import UserCategoriesTab from "@/components/admin/UserCategoriesTab";
 import SiteMapTab from "@/components/admin/SiteMapTab";
 import ImportSettingsTab from "@/components/admin/ImportSettingsTab";
+import { SITE_SOCIAL_FORM_FIELDS } from "@/config/siteSocialLinks";
 
 const CATEGORY_LABELS: Record<string, string> = {
   contato: "Contato / WhatsApp",
   geral: "Informações",
 };
 
-const HIDDEN_CATEGORIES = new Set(["colunas", "google_sheets", "imagens", "importacao"]);
+const HIDDEN_CATEGORIES = new Set(["colunas", "google_sheets", "imagens", "importacao", "redes_sociais"]);
 
 const SECRET_KEYS = new Set(["google_sheets_api_key", "removebg_api_key"]);
 
@@ -47,7 +48,18 @@ const SettingsPage = () => {
   useEffect(() => {
     api
       .getSettings()
-      .then(setSettings)
+      .then((rows) => {
+        const keySet = new Set(rows.map((r) => r.key));
+        const ts = new Date().toISOString();
+        const extras: SettingItem[] = SITE_SOCIAL_FORM_FIELDS.filter((f) => !keySet.has(f.key)).map((f) => ({
+          key: f.key,
+          value: "",
+          label: f.settingsLabel,
+          category: "redes_sociais",
+          updated_at: ts,
+        }));
+        setSettings([...rows, ...extras]);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
 
@@ -173,6 +185,7 @@ const SettingsPage = () => {
         prev.map((s) => (s.key in dirty ? { ...s, value: dirty[s.key] } : s)),
       );
       setDirty({});
+      void queryClient.invalidateQueries({ queryKey: ["site-settings"] });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e: unknown) {
@@ -281,6 +294,37 @@ const SettingsPage = () => {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Redes sociais — rodapé do site público */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-2">Redes sociais</h2>
+          <p className="text-sm text-slate-500 mb-5">
+            Links exibidos como ícones no rodapé do site. Deixe em branco as redes que não quiser mostrar.
+          </p>
+          <div className="grid gap-5 md:grid-cols-2">
+            {SITE_SOCIAL_FORM_FIELDS.map((field) => {
+              const Icon = field.Icon;
+              return (
+                <div key={field.key}>
+                  <Label htmlFor={field.key} className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                    <Icon className="text-slate-500 shrink-0" size={16} aria-hidden />
+                    {field.label}
+                  </Label>
+                  <Input
+                    id={field.key}
+                    type="text"
+                    inputMode="url"
+                    autoComplete="off"
+                    placeholder={field.placeholder}
+                    value={getValue(field.key)}
+                    onChange={(e) => handleChange(field.key, e.target.value)}
+                    className={field.key in dirty ? "mt-1.5 border-blue-400 ring-1 ring-blue-200" : "mt-1.5"}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
 

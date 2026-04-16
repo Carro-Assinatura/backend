@@ -21,6 +21,7 @@ import { useLogo } from "@/hooks/useLogo";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { useQuery } from "@tanstack/react-query";
 import { getCarImagesMap } from "@/services/googleSheets";
+import { CarImageLegalCaptionOverlay } from "@/components/CarImageLegalCaption";
 
 const LOGO_FALLBACK = "/logo-multi.svg";
 
@@ -422,7 +423,7 @@ function CarouselBrand({
                 key={carKey}
                 className="flex-shrink-0 w-full snap-center rounded-2xl bg-card border border-border overflow-hidden shadow-card"
               >
-                <div className="aspect-[3/2] sm:aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+                <div className="relative aspect-[3/2] sm:aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
                   <img
                     src={imgSrc}
                     alt={displayName}
@@ -432,6 +433,7 @@ function CarouselBrand({
                       e.currentTarget.src = fallbackImg;
                     }}
                   />
+                  {hasCarImage ? <CarImageLegalCaptionOverlay /> : null}
                 </div>
                 <div className="p-4">
                   {vars[0]?.categoria && (

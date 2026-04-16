@@ -1,4 +1,6 @@
 import { supabase, supabaseIsolated } from "@/lib/supabase";
+import { getCarImagesMap, resolveCarImageFromMap } from "@/services/googleSheets";
+import { SITE_SOCIAL_FORM_FIELDS } from "@/config/siteSocialLinks";
 
 /* ── Interfaces ──────────────────────────────────────── */
 
@@ -46,7 +48,7 @@ export interface RolePermission {
 export const PERMISSION_KEYS = [
   { key: "menu_dashboard", label: "Visão Geral (Dashboard)", group: "Menus" },
   { key: "menu_fin_camp", label: "Fin Camp", group: "Menus" },
-  { key: "menu_planilhas", label: "Planilhas", group: "Menus" },
+  { key: "menu_planilhas", label: "Cad. Preços", group: "Menus" },
   { key: "menu_tracking", label: "Tracking", group: "Menus" },
   { key: "menu_bot_config", label: "Configuração do Bot", group: "Menus" },
   { key: "menu_clients", label: "Clientes (CRM)", group: "Menus" },
@@ -272,10 +274,23 @@ export interface CarPricePromotion {
   updated_at?: string;
 }
 
-/** Texto para o banner do hero (promoções ativas). */
+/** Valor + data final para listagem na intranet (admin). */
+export interface CarPricePromotionAdminSummary {
+  promo_valor_mensal_locacao: number;
+  ends_on: string | null;
+}
+
+/** Texto + imagem para o banner do hero (promoções ativas). */
 export interface HeroPromoSnippet {
-  carDisplayName: string;
+  /** Marca + nome do carro (linha sob a imagem). */
+  linhaMarcaNome: string;
+  /** Campo modelo / versão (`modelo_carro`). */
+  modeloVersao: string;
   formattedPromoPrice: string;
+  /** URL em `car_images` quando encontrada para o nome do veículo. */
+  imageUrl?: string;
+  /** Nome completo para `alt` da imagem. */
+  carDisplayName: string;
 }
 
 export interface ClientTrackingEvent {
@@ -388,11 +403,27 @@ export const api = {
     const now = new Date().toISOString();
 
     for (const s of settings) {
-      const { error } = await supabase
-        .from("settings")
-        .update({ value: s.value, updated_by: uid, updated_at: now })
-        .eq("key", s.key);
-      if (error) throw new Error(error.message);
+      const social = SITE_SOCIAL_FORM_FIELDS.find((f) => f.key === s.key);
+      if (social) {
+        const { error } = await supabase.from("settings").upsert(
+          {
+            key: s.key,
+            value: s.value,
+            label: social.settingsLabel,
+            category: "redes_sociais",
+            updated_by: uid,
+            updated_at: now,
+          },
+          { onConflict: "key" },
+        );
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await supabase
+          .from("settings")
+          .update({ value: s.value, updated_by: uid, updated_at: now })
+          .eq("key", s.key);
+        if (error) throw new Error(error.message);
+      }
     }
 
     await auditLog("settings_update", `Atualizou: ${settings.map((s) => s.key).join(", ")}`);
@@ -1538,6 +1569,31 @@ export const api = {
     return (data as CarPricePromotion) ?? null;
   },
 
+  /** Mapa car_price_id → valor + fim da promoção (intranet admin; inclui fora do período). */
+  getCarPricePromotionsForCarPriceIds: async (
+    ids: string[],
+  ): Promise<Map<string, CarPricePromotionAdminSummary>> => {
+    const out = new Map<string, CarPricePromotionAdminSummary>();
+    const unique = [...new Set(ids.filter(Boolean))];
+    const CHUNK = 80;
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      const slice = unique.slice(i, i + CHUNK);
+      const { data, error } = await supabase
+        .from("car_price_promotions")
+        .select("car_price_id, promo_valor_mensal_locacao, ends_on")
+        .in("car_price_id", slice);
+      if (error) throw new Error(error.message);
+      for (const row of data ?? []) {
+        const id = (row as { car_price_id: string }).car_price_id;
+        const v = Number((row as { promo_valor_mensal_locacao: number }).promo_valor_mensal_locacao);
+        const rawEnd = (row as { ends_on: string | null }).ends_on;
+        const endsOn = rawEnd != null && String(rawEnd).trim() !== "" ? String(rawEnd).trim() : null;
+        if (id && Number.isFinite(v)) out.set(id, { promo_valor_mensal_locacao: v, ends_on: endsOn });
+      }
+    }
+    return out;
+  },
+
   upsertCarPricePromotion: async (d: {
     car_price_id: string;
     promo_valor_mensal_locacao: number;
@@ -1567,10 +1623,14 @@ export const api = {
 
   /** Promoções ativas com nome do carro (banner do site). */
   getHeroPromoSnippets: async (): Promise<HeroPromoSnippet[]> => {
-    const { data, error } = await supabaseIsolated.from("car_price_promotions").select(`
+    const [imgRes, promoRes] = await Promise.all([
+      getCarImagesMap().catch(() => new Map<string, string>()),
+      supabaseIsolated.from("car_price_promotions").select(`
       promo_valor_mensal_locacao,
       car_prices ( marca, nome_carro, modelo_carro )
-    `);
+    `),
+    ]);
+    const { data, error } = promoRes;
     if (error) {
       console.warn("[getHeroPromoSnippets]", error.message);
       return [];
@@ -1582,19 +1642,28 @@ export const api = {
     }[]) {
       const c = row.car_prices;
       if (!c) continue;
-      const name = [c.marca, (c.nome_carro || c.modelo_carro || "").trim()].filter(Boolean).join(" ").trim();
-      if (!name) continue;
+      const marca = (c.marca ?? "").trim();
+      const nome = (c.nome_carro ?? "").trim();
+      const modelo = (c.modelo_carro ?? "").trim();
+      const linhaMarcaNome = [marca, nome].filter(Boolean).join(" ").trim();
+      const nameForImage = [marca, nome || modelo].filter(Boolean).join(" ").trim();
+      if (!linhaMarcaNome && !modelo) continue;
       const n = typeof row.promo_valor_mensal_locacao === "number"
         ? row.promo_valor_mensal_locacao
         : parseFloat(String(row.promo_valor_mensal_locacao).replace(",", "."));
       if (!Number.isFinite(n) || n <= 0) continue;
+      const imageUrl = nameForImage ? resolveCarImageFromMap(nameForImage, imgRes) : "";
+      const carDisplayName = [marca, nome, modelo].filter(Boolean).join(" ").trim() || linhaMarcaNome || modelo;
       out.push({
-        carDisplayName: name,
+        linhaMarcaNome: linhaMarcaNome || modelo,
+        modeloVersao: modelo,
+        carDisplayName,
         formattedPromoPrice: n.toLocaleString("pt-BR", {
           style: "currency",
           currency: "BRL",
           minimumFractionDigits: 0,
         }),
+        ...(imageUrl ? { imageUrl } : {}),
       });
     }
     return out;

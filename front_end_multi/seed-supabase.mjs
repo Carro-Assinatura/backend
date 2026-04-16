@@ -85,7 +85,23 @@ async function seedSettings() {
     { key: "whatsapp_number", value: "5511999999999", label: "Número do WhatsApp", category: "contato" },
     { key: "whatsapp_message", value: "Olá! Gostaria de saber mais sobre carros por assinatura.", label: "Mensagem padrão do WhatsApp", category: "contato" },
     { key: "site_title", value: "Multi Experiências", label: "Título do Site", category: "geral" },
-    { key: "site_description", value: "Carro por assinatura sem entrada e sem preocupação", label: "Descrição do Site", category: "geral" },
+    {
+      key: "site_description",
+      value:
+        "Assinatura de carros zero km com manutenção inclusa, IPVA, seguro e planos flexíveis. Sem burocracia, sem financiamento.",
+      label: "Descrição do Site",
+      category: "geral",
+    },
+    { key: "car_source", value: "", label: "Fonte dos carros no site (interno)", category: "geral" },
+    { key: "social_instagram_url", value: "", label: "Instagram — URL do perfil", category: "redes_sociais" },
+    { key: "social_facebook_url", value: "", label: "Facebook — URL da página", category: "redes_sociais" },
+    { key: "social_linkedin_url", value: "", label: "LinkedIn — URL do perfil ou empresa", category: "redes_sociais" },
+    { key: "social_x_url", value: "", label: "X (Twitter) — URL do perfil", category: "redes_sociais" },
+    { key: "social_youtube_url", value: "", label: "YouTube — URL do canal", category: "redes_sociais" },
+    { key: "social_tiktok_url", value: "", label: "TikTok — URL do perfil", category: "redes_sociais" },
+    { key: "social_threads_url", value: "", label: "Threads — URL do perfil", category: "redes_sociais" },
+    { key: "social_pinterest_url", value: "", label: "Pinterest — URL do perfil", category: "redes_sociais" },
+    { key: "social_snapchat_url", value: "", label: "Snapchat — URL do perfil ou add", category: "redes_sociais" },
   ];
 
   const insertRes = await fetch(`${SUPABASE_URL}/rest/v1/settings`, {

@@ -143,6 +143,24 @@ export async function getCarImagesMap(): Promise<Map<string, string>> {
   return map;
 }
 
+/** Resolve URL em `car_images` pelo nome exibido (mesma lógica do site em Modelos). */
+export function resolveCarImageFromMap(carName: string, imageMap: Map<string, string>): string {
+  const lower = carName.toLowerCase().trim();
+  if (imageMap.has(lower)) return imageMap.get(lower)!;
+  for (const [registeredName, url] of imageMap) {
+    if (lower.includes(registeredName) || registeredName.includes(lower)) return url;
+  }
+  const words = lower.split(/\s+/);
+  if (words.length >= 2) {
+    const modelOnly = words.slice(1).join(" ");
+    if (imageMap.has(modelOnly)) return imageMap.get(modelOnly)!;
+    for (const [registeredName] of imageMap) {
+      if (registeredName.includes(modelOnly)) return imageMap.get(registeredName)!;
+    }
+  }
+  return "";
+}
+
 export async function fetchAllCars(): Promise<CarRow[]> {
   const sources = await getActiveSheetSources();
   if (sources.length === 0) return [];

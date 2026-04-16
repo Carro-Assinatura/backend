@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type CarPrice } from "@/services/api";
+import { api, type CarPrice, type CarPricePromotionAdminSummary } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -57,6 +57,30 @@ import {
 const DB_COLUMNS = Object.keys(DB_COLUMN_LABELS) as DbColumnKey[];
 
 const PAGE_SIZE_OPTIONS = [10, 50, 100] as const;
+
+function formatIsoDateEndsOnPtBR(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
+
+function PromoIntranetSummary({ promo }: { promo: CarPricePromotionAdminSummary }) {
+  return (
+    <span className="text-xs font-bold text-red-700 tabular-nums flex flex-wrap items-center gap-x-1.5 gap-y-0 self-center">
+      <span className="whitespace-nowrap">
+        {Number(promo.promo_valor_mensal_locacao).toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+          minimumFractionDigits: 0,
+        })}
+      </span>
+      {promo.ends_on ? (
+        <span className="whitespace-nowrap font-semibold text-red-600/90">
+          até {formatIsoDateEndsOnPtBR(promo.ends_on)}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 const ImportCarPricesTab = () => {
   const { toast } = useToast();
@@ -128,6 +152,23 @@ const ImportCarPricesTab = () => {
   const importedCars = importedCarsData?.rows ?? [];
   const importedTotal = importedCarsData?.total ?? 0;
   const totalPages = Math.ceil(importedTotal / pageSize);
+
+  const importedCarIdsKey = useMemo(
+    () =>
+      importedCars
+        .map((c) => c.id)
+        .filter(Boolean)
+        .sort()
+        .join(","),
+    [importedCars],
+  );
+
+  const { data: promoByCarId = new Map<string, CarPricePromotionAdminSummary>() } = useQuery({
+    queryKey: ["car-price-promotions-admin", importedCarIdsKey],
+    queryFn: () => api.getCarPricePromotionsForCarPriceIds(importedCars.map((c) => c.id)),
+    enabled: importedCars.length > 0,
+    staleTime: 30 * 1000,
+  });
 
   const { data: learnedBrands = new Map<string, string>() } = useQuery({
     queryKey: ["car-brand-mappings"],
@@ -373,6 +414,7 @@ const ImportCarPricesTab = () => {
       await queryClient.invalidateQueries({ queryKey: ["cars-for-site"] });
       await queryClient.invalidateQueries({ queryKey: ["car-prices-full"] });
       await queryClient.invalidateQueries({ queryKey: ["hero-promo-snippets"] });
+      await queryClient.invalidateQueries({ queryKey: ["car-price-promotions-admin"] });
       if (carSource !== "importar") {
         await setCarSource("importar");
       }
@@ -437,6 +479,7 @@ const ImportCarPricesTab = () => {
       queryClient.invalidateQueries({ queryKey: ["cars-for-site"] });
       queryClient.invalidateQueries({ queryKey: ["car-prices-full"] });
       queryClient.invalidateQueries({ queryKey: ["hero-promo-snippets"] });
+      queryClient.invalidateQueries({ queryKey: ["car-price-promotions-admin"] });
     } catch (err) {
       toast({
         title: "Erro",
@@ -503,6 +546,7 @@ const ImportCarPricesTab = () => {
       queryClient.invalidateQueries({ queryKey: ["cars-for-site"] });
       queryClient.invalidateQueries({ queryKey: ["car-prices-full"] });
       queryClient.invalidateQueries({ queryKey: ["hero-promo-snippets"] });
+      queryClient.invalidateQueries({ queryKey: ["car-price-promotions-admin"] });
     } catch (err) {
       toast({
         title: "Erro",
@@ -524,6 +568,7 @@ const ImportCarPricesTab = () => {
       queryClient.invalidateQueries({ queryKey: ["cars-for-site"] });
       queryClient.invalidateQueries({ queryKey: ["car-prices-full"] });
       queryClient.invalidateQueries({ queryKey: ["hero-promo-snippets"] });
+      queryClient.invalidateQueries({ queryKey: ["car-price-promotions-admin"] });
     } catch (err) {
       toast({
         title: "Erro",
@@ -665,7 +710,7 @@ const ImportCarPricesTab = () => {
                 <th className="text-left px-3 py-2 font-medium">Franquia</th>
                 <th className="text-left px-3 py-2 font-medium">Prazo</th>
                 <th className="text-left px-3 py-2 font-medium">Valor Mensal</th>
-                <th className="text-left px-3 py-2 font-medium min-w-[168px]">Ações</th>
+                <th className="text-left px-3 py-2 font-medium min-w-[220px]">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -697,6 +742,9 @@ const ImportCarPricesTab = () => {
                         <Megaphone size={14} className="mr-1" />
                         Promoção
                       </Button>
+                      {promoByCarId.has(car.id) ? (
+                        <PromoIntranetSummary promo={promoByCarId.get(car.id)!} />
+                      ) : null}
                     </div>
                   </td>
                 </tr>

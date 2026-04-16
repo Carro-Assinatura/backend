@@ -1,8 +1,8 @@
-import { Shield, Car, Wrench, CreditCard, RefreshCw, Clock } from "lucide-react";
+import { Shield, Car, Wrench, RefreshCw, Clock, Receipt } from "lucide-react";
 
 const benefits = [
-  { icon: CreditCard, title: "Sem Entrada", desc: "Comece a dirigir sem desembolsar um centavo de entrada." },
-  { icon: Car, title: "Carro Zero Km", desc: "Veículos novos, direto da concessionária para você." },
+  { icon: Car, title: "Carro Zero Km", desc: "Veículos novos, direto da fábrica para você." },
+  { icon: Receipt, title: "IPVA Incluso", desc: "O IPVA é por nossa conta!" },
   { icon: Wrench, title: "Manutenção Inclusa", desc: "Revisões e manutenções cobertas na mensalidade." },
   { icon: Shield, title: "Seguro Incluso", desc: "Proteção total sem custos adicionais." },
   { icon: RefreshCw, title: "Troca Facilitada", desc: "Troque de carro novo quando quiser, com total flexibilidade." },

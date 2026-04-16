@@ -7,7 +7,7 @@ const rows = [
   { feature: "Desvalorização", own: "Você perde dinheiro", sub: "Sem preocupação" },
   { feature: "Burocracia", own: "Financiamento, IPVA, licenciamento", sub: "Tudo resolvido" },
   { feature: "Troca de carro novo", own: "Difícil e caro", sub: "Facilitada" },
-  { feature: "Custo mensal previsível", own: "Imprevisível", sub: "Mensalidade fixa" },
+  { feature: "Custo mensal previsível", own: "Imprevisível", sub: "Valor mensal sem surpresas" },
 ];
 
 const ComparisonSection = () => {
@@ -26,21 +26,30 @@ const ComparisonSection = () => {
 
         <div className="max-w-3xl mx-auto rounded-2xl overflow-hidden border border-border shadow-card">
           {/* Header */}
-          <div className="grid grid-cols-3 bg-primary text-primary-foreground">
-            <div className="p-4 md:p-6 font-semibold text-sm md:text-base"></div>
-            <div className="p-4 md:p-6 font-semibold text-sm md:text-base text-center">Carro Próprio</div>
-            <div className="p-4 md:p-6 font-semibold text-sm md:text-base text-center bg-accent">Assinatura zero km</div>
+          <div className="grid grid-cols-3">
+            <div className="p-4 md:p-6 font-semibold text-sm md:text-base bg-accent text-accent-foreground" />
+            <div className="p-4 md:p-6 font-semibold text-sm md:text-base text-center bg-accent text-accent-foreground">
+              Carro Próprio
+            </div>
+            <div className="p-4 md:p-6 font-semibold text-sm md:text-base text-center bg-primary text-primary-foreground">
+              Assinatura zero km
+            </div>
           </div>
 
           {rows.map(({ feature, own, sub }, i) => (
             <div key={feature} className={`grid grid-cols-3 ${i % 2 === 0 ? "bg-card" : "bg-muted/30"}`}>
               <div className="p-4 md:p-6 font-medium text-sm text-foreground">{feature}</div>
               <div className="p-4 md:p-6 text-sm text-center text-muted-foreground flex items-center justify-center gap-1">
-                <X size={16} className="text-destructive shrink-0" />
+                <X size={18} strokeWidth={3} className="shrink-0 text-destructive" aria-hidden />
                 <span className="hidden sm:inline">{own}</span>
               </div>
               <div className="p-4 md:p-6 text-sm text-center text-foreground font-medium flex items-center justify-center gap-1">
-                <Check size={16} className="text-accent shrink-0" />
+                <Check
+                  size={20}
+                  strokeWidth={2.75}
+                  className="shrink-0 text-[hsl(218_72%_18%)] dark:text-sky-400"
+                  aria-hidden
+                />
                 <span className="hidden sm:inline">{sub}</span>
               </div>
             </div>

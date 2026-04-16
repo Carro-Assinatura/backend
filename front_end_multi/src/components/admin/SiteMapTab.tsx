@@ -88,7 +88,7 @@ const SITE_MAP_ROOT: SiteMapNode = {
             { id: "fin-camp", label: "Fin Camp", path: "/admin/fin-camp", icon: BarChart2 },
           ],
         },
-        { id: "planilhas", label: "Planilhas", path: "/admin/spreadsheets", icon: FileSpreadsheet },
+        { id: "planilhas", label: "Cad. Preços", path: "/admin/spreadsheets", icon: FileSpreadsheet },
         { id: "tracking", label: "Tracking", path: "/admin/tracking", icon: Radar },
         { id: "bot-config", label: "Config Bot", path: "/admin/bot-config", icon: Bot },
         { id: "clientes", label: "Clientes", path: "/admin/clients", icon: UserSearch },
@@ -183,7 +183,7 @@ function SiteMapDiagram() {
           <text x="650" y="152" textAnchor="middle" fill="#64748b" fontSize="11" fontWeight="500">Intranet (/admin)</text>
           <line x1="650" y1="166" x2="650" y2="200" stroke="#94a3b8" strokeWidth="1" markerEnd="url(#arrowhead)" />
           <rect x="560" y="200" width="180" height="24" rx="4" fill="white" stroke="#e2e8f0" strokeWidth="1" />
-          <text x="650" y="216" textAnchor="middle" fill="#334155" fontSize="9">Login, Dashboard, Planilhas</text>
+          <text x="650" y="216" textAnchor="middle" fill="#334155" fontSize="9">Login, Dashboard, Cad. Preços</text>
           <rect x="560" y="230" width="180" height="24" rx="4" fill="white" stroke="#e2e8f0" strokeWidth="1" />
           <text x="650" y="246" textAnchor="middle" fill="#334155" fontSize="9">Clientes, Configurações, Log</text>
         </g>

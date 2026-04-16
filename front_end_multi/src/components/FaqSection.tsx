@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     q: "Posso trocar de carro novo durante o contrato?",
-    a: "Sim! Oferecemos flexibilidade para troca de veículo conforme as condições do seu plano. Consulte nossos especialistas.",
+    a: "Não! Oferecemos flexibilidade para troca de veículo ao final do seu contrato.",
   },
   {
     q: "Quem paga a manutenção?",
@@ -28,7 +28,12 @@ const faqs = [
   },
   {
     q: "Posso usar o carro zero km para trabalho?",
-    a: "Sim! Temos planos para pessoas físicas e jurídicas. Ideal para profissionais liberais e empresas que desejam frotas sem imobilização de capital.",
+    a: "Sim! Temos planos para pessoas físicas e jurídicas. Ideal para profissionais liberais e empresas que desejam frotas sem imobilização de capital. Exceto aplicativos.",
+  },
+  {
+    q: "Posso usar o carro zero km para trabalhar com aplicativos como Uber?",
+    a:
+      "Você pode dirigir o carro normalmente no seu dia a dia, mas ele não pode ser utilizado para trabalhar com aplicativos de transporte, como Uber, 99 e similares.\n\nO uso para atividade remunerada como motorista de aplicativo não é permitido nas condições do serviço.",
   },
 ];
 
@@ -54,7 +59,7 @@ const FaqSection = () => {
                 <AccordionTrigger className="text-left font-semibold text-foreground hover:no-underline">
                   {q}
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground">
+                <AccordionContent className="text-muted-foreground whitespace-pre-line">
                   {a}
                 </AccordionContent>
               </AccordionItem>

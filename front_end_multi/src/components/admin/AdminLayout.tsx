@@ -45,9 +45,9 @@ const AdminLayout = () => {
 
   // Ordem alfabética: grupos e itens dentro de cada grupo
   const navItems = [
-    // COMERCIAL (Clientes, Planilhas)
+    // COMERCIAL (Clientes, Cad. Preços)
     { to: "/admin/clients", icon: UserSearch, label: "Clientes", end: false, permissionKey: "menu_clients", minRole: "analista", group: "Comercial" },
-    { to: "/admin/spreadsheets", icon: FileSpreadsheet, label: "Planilhas", end: false, permissionKey: "menu_planilhas", minRole: "gerente", group: "Comercial" },
+    { to: "/admin/spreadsheets", icon: FileSpreadsheet, label: "Cad. Preços", end: false, permissionKey: "menu_planilhas", minRole: "gerente", group: "Comercial" },
     // CONFIGURAÇÕES (Conf Bot, Depoimentos, Geral, Usuários)
     { to: "/admin/bot-config", icon: Bot, label: "Conf Bot", end: false, permissionKey: "menu_bot_config", minRole: "gerente", group: "Configurações" },
     { to: "/admin/settings", icon: Settings, label: "Geral", end: false, permissionKey: "menu_settings", minRole: "gerente", group: "Configurações" },

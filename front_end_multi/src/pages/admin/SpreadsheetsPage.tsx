@@ -70,10 +70,13 @@ const emptyPage = {
   spreadsheet_id: "",
 };
 
+/** Neste projeto o cadastro de preços usa só importação; aba Google Sheets fica oculta. */
+const SHOW_GOOGLE_SHEETS_TAB = false;
+
 const SpreadsheetsPage = () => {
   const { carSource, setCarSource } = useCarSource();
   const [sheets, setSheets] = useState<SheetWithPages[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(SHOW_GOOGLE_SHEETS_TAB);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -111,7 +114,8 @@ const SpreadsheetsPage = () => {
   }, []);
 
   useEffect(() => {
-    load();
+    if (!SHOW_GOOGLE_SHEETS_TAB) return;
+    void load();
   }, [load]);
 
   const flash = (msg: string) => {
@@ -744,12 +748,14 @@ const SpreadsheetsPage = () => {
   );
 
   return (
-    <Tabs defaultValue="sheets" className="w-full">
+    <Tabs defaultValue="import" className="w-full">
       <TabsList className="mb-6">
-        <TabsTrigger value="sheets" className="gap-2">
-          <FileSpreadsheet size={16} />
-          Planilhas
-        </TabsTrigger>
+        {SHOW_GOOGLE_SHEETS_TAB ? (
+          <TabsTrigger value="sheets" className="gap-2">
+            <FileSpreadsheet size={16} />
+            Planilhas
+          </TabsTrigger>
+        ) : null}
         <TabsTrigger value="import" className="gap-2">
           <Upload size={16} />
           Importar
@@ -760,7 +766,7 @@ const SpreadsheetsPage = () => {
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="sheets">{sheetsContent}</TabsContent>
+      {SHOW_GOOGLE_SHEETS_TAB ? <TabsContent value="sheets">{sheetsContent}</TabsContent> : null}
       <TabsContent value="import">
         <Tabs defaultValue="importar" className="w-full">
           <TabsList className="mb-6">

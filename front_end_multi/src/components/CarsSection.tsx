@@ -21,6 +21,7 @@ import { useCarsData, type CarDisplay } from "@/hooks/useCarsData";
 import { useCarPricesFull, type CarPriceVariant } from "@/hooks/useCarPricesFull";
 import { useLogo } from "@/hooks/useLogo";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { CarImageLegalCaptionOverlay } from "@/components/CarImageLegalCaption";
 
 const LOGO_FALLBACK = "/logo-multi.svg";
 
@@ -225,7 +226,7 @@ function CarCardNormal({
   const imgSrc = hasCarImage ? car.image : fallbackImg;
   return (
     <div className="flex-shrink-0 w-[min(280px,85vw)] group rounded-2xl bg-card border border-border/50 overflow-hidden shadow-card hover:shadow-card-hover transition-all duration-300">
-      <div className="aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
         <img
           src={imgSrc}
           alt={hasCarImage ? `${car.name} - carro por assinatura` : "Logo da empresa"}
@@ -236,6 +237,7 @@ function CarCardNormal({
             e.currentTarget.className = "w-full h-full object-contain p-8 opacity-60 transition-transform duration-500";
           }}
         />
+        {hasCarImage ? <CarImageLegalCaptionOverlay /> : null}
       </div>
       <div className="p-5">
         {car.category && (
@@ -304,7 +306,7 @@ function CarCardCalculator({
 
   return (
     <div className="flex-shrink-0 w-[min(280px,85vw)] group rounded-2xl bg-card border border-border/50 overflow-hidden shadow-card hover:shadow-card-hover transition-all duration-300">
-      <div className="aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
         <img
           src={imgSrc}
           alt={hasCarImage ? `${displayName} - carro por assinatura` : "Logo da empresa"}
@@ -315,6 +317,7 @@ function CarCardCalculator({
             e.currentTarget.className = "w-full h-full object-contain p-8 opacity-60 transition-transform duration-500";
           }}
         />
+        {hasCarImage ? <CarImageLegalCaptionOverlay /> : null}
       </div>
       <div className="p-5">
         {variants[0]?.categoria && (

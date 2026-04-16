@@ -96,7 +96,22 @@ CREATE POLICY "Admins podem editar settings" ON public.settings
 
 CREATE POLICY "Settings publicas para todos" ON public.settings
   FOR SELECT USING (
-    key IN ('whatsapp_number', 'whatsapp_message', 'site_title', 'site_description')
+    key IN (
+      'whatsapp_number',
+      'whatsapp_message',
+      'site_title',
+      'site_description',
+      'car_source',
+      'social_instagram_url',
+      'social_facebook_url',
+      'social_linkedin_url',
+      'social_x_url',
+      'social_youtube_url',
+      'social_tiktok_url',
+      'social_threads_url',
+      'social_pinterest_url',
+      'social_snapchat_url'
+    )
   );
 
 -- Audit Log
@@ -128,5 +143,15 @@ INSERT INTO public.settings (key, value, label, category) VALUES
   ('whatsapp_number', '5511999999999', 'Número do WhatsApp', 'contato'),
   ('whatsapp_message', 'Olá! Gostaria de saber mais sobre carros por assinatura.', 'Mensagem padrão do WhatsApp', 'contato'),
   ('site_title', 'Multi Experiências', 'Título do Site', 'geral'),
-  ('site_description', 'Carro por assinatura sem entrada e sem preocupação', 'Descrição do Site', 'geral')
+  ('site_description', 'Carro por assinatura sem entrada e sem preocupação', 'Descrição do Site', 'geral'),
+  ('car_source', '', 'Fonte dos carros no site (interno)', 'geral'),
+  ('social_instagram_url', '', 'Instagram — URL do perfil', 'redes_sociais'),
+  ('social_facebook_url', '', 'Facebook — URL da página', 'redes_sociais'),
+  ('social_linkedin_url', '', 'LinkedIn — URL do perfil ou empresa', 'redes_sociais'),
+  ('social_x_url', '', 'X (Twitter) — URL do perfil', 'redes_sociais'),
+  ('social_youtube_url', '', 'YouTube — URL do canal', 'redes_sociais'),
+  ('social_tiktok_url', '', 'TikTok — URL do perfil', 'redes_sociais'),
+  ('social_threads_url', '', 'Threads — URL do perfil', 'redes_sociais'),
+  ('social_pinterest_url', '', 'Pinterest — URL do perfil', 'redes_sociais'),
+  ('social_snapchat_url', '', 'Snapchat — URL do perfil ou add', 'redes_sociais')
 ON CONFLICT (key) DO NOTHING;
