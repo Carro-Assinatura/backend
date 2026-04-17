@@ -57,6 +57,12 @@ function supabaseEnvForBundle(): { url: string; anon: string } {
 export default defineConfig(() => {
   const { url: sbUrl, anon: sbAnon } = supabaseEnvForBundle();
 
+  if (process.env.GITHUB_ACTIONS === "true" && (!sbUrl || !sbAnon)) {
+    console.warn(
+      "[vite] Supabase ausente no build (GitHub Actions). Defina secrets VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em: Repo → Settings → Secrets and variables → Actions.",
+    );
+  }
+
   if (process.env.VERCEL && (!sbUrl || !sbAnon)) {
     const relatedKeys = Object.keys(process.env).filter(
       (k) =>

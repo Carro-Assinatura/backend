@@ -17,6 +17,8 @@ O site principal (front_end_multi) é publicado automaticamente no GitHub Pages 
 
 ### 2. Adicionar Secrets (variáveis de ambiente)
 
+**Importante:** o build do **GitHub Pages** só lê estes **Secrets do repositório GitHub**. Variáveis configuradas na **Vercel** não entram neste deploy (são outro ambiente).
+
 Em **Settings** → **Secrets and variables** → **Actions**, crie os seguintes secrets:
 
 | Secret | Descrição |

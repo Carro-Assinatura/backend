@@ -27,6 +27,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verificar secrets Supabase (GitHub Pages)
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "${VITE_SUPABASE_URL:-}" ] || [ -z "${VITE_SUPABASE_ANON_KEY:-}" ]; then
+            echo "::error::Este deploy (GitHub Pages) precisa dos SECRETS no GitHub, não só da Vercel."
+            echo "::error::Repositório → Settings → Secrets and variables → Actions → New repository secret"
+            echo "::error::Crie VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (Supabase → Project Settings → API)."
+            exit 1
+          fi
+          echo "Secrets VITE_SUPABASE_* presentes para o build."
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
