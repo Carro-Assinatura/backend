@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { MessageCircle } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
@@ -25,41 +25,55 @@ function closeChatWindow(): void {
   if (toggle) (toggle as HTMLElement).click();
 }
 
+type N8nChatVueApp = { unmount: () => void };
+
 const ContactFloat = () => {
   const location = useLocation();
   const { whatsappUrl } = useSiteSettings();
   const { config, showBot, isMobile } = useBotConfig();
   const { logoUrl } = useLogo();
-  const chatInitialized = useRef(false);
+  const chatVueAppRef = useRef<N8nChatVueApp | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
 
   const isHidden = location.pathname.startsWith("/admin") || location.pathname === "/campanha";
 
+  const destroyChatMount = useCallback(() => {
+    const app = chatVueAppRef.current;
+    if (app) {
+      try {
+        app.unmount();
+      } catch {
+        /* alvo já removido do DOM */
+      }
+      chatVueAppRef.current = null;
+    }
+    const el = document.getElementById(N8N_CHAT_TARGET_ID);
+    if (el) el.replaceChildren();
+  }, []);
+
   useEffect(() => {
-    /** Sem div no DOM (mobile só WhatsApp, /admin, /campanha): não marcar init — senão o ref bloqueia e o bot nunca aparece ao voltar à home. */
     if (isHidden || isMobile || !showBot || !config?.webhook_url) return;
 
     let mounted = true;
 
     const initChat = async () => {
-      if (chatInitialized.current) return;
+      destroyChatMount();
 
       const target = document.getElementById(N8N_CHAT_TARGET_ID);
-      if (!target || target.hasChildNodes()) return;
-
-      chatInitialized.current = true;
+      if (!target) return;
 
       try {
         await import("@n8n/chat/style.css");
         const { createChat } = await import("@n8n/chat");
 
         if (!mounted) return;
+        if (!document.body.contains(target)) return;
 
         const initialMessages = Array.isArray(config.initial_messages) && config.initial_messages.length > 0
           ? config.initial_messages
           : ["Olá! 👋", "Como posso ajudar você hoje?"];
 
-        createChat({
+        const app = createChat({
           webhookUrl: config.webhook_url.trim(),
           target: `#${N8N_CHAT_TARGET_ID}`,
           mode: config.mode ?? "window",
@@ -80,18 +94,19 @@ const ContactFloat = () => {
             },
           },
         });
+        chatVueAppRef.current = app;
       } catch (err) {
         console.error("Erro ao inicializar chat N8N:", err);
-        chatInitialized.current = false;
+        destroyChatMount();
       }
     };
 
-    initChat();
+    void initChat();
     return () => {
       mounted = false;
-      chatInitialized.current = false;
+      destroyChatMount();
     };
-  }, [isHidden, isMobile, showBot, config]);
+  }, [isHidden, isMobile, showBot, config, destroyChatMount]);
 
   // Ouvir evento para abrir o chat (usado pelos botões "Falar no WhatsApp" no desktop)
   useEffect(() => {
