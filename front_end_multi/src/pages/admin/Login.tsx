@@ -6,6 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Lock } from "lucide-react";
 
+/** Remove sessões antigas do Supabase no browser (mudança de URL do projecto / proxy). */
+function clearSupabaseBrowserStorage(): void {
+  try {
+    for (const store of [localStorage, sessionStorage]) {
+      const keys = Object.keys(store).filter((k) => k.startsWith("sb-"));
+      for (const k of keys) store.removeItem(k);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -79,6 +91,20 @@ const Login = () => {
               Entrar
             </Button>
           </form>
+
+          <p className="mt-6 text-center text-xs text-slate-500 leading-relaxed">
+            Se o site só abre em <strong>aba anónima</strong> ou noutro navegador, a sessão ou cache deste browser pode estar antiga.
+            <button
+              type="button"
+              className="mt-2 block w-full text-center text-primary underline underline-offset-2 hover:no-underline"
+              onClick={() => {
+                clearSupabaseBrowserStorage();
+                window.location.reload();
+              }}
+            >
+              Limpar sessão Supabase neste site e recarregar
+            </button>
+          </p>
         </div>
       </div>
     </div>
