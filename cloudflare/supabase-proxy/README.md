@@ -5,7 +5,8 @@ Encaminha `https://sup.kingsengine.tech/*` para o teu projeto `https://<ref>.sup
 ## O que precisas de fazer (uma vez)
 
 1. **Domínio na Cloudflare**  
-   Garante que `kingsengine.tech` usa os nameservers da Cloudflare (zona activa no teu login).
+   Garante que `kingsengine.tech` usa os nameservers da Cloudflare (zona activa no teu login).  
+   *Se o domínio está registado na **Hostinger**, vê a secção [Domínio na Hostinger](#domínio-na-hostinger-nameservers--dns) abaixo.*
 
 2. **Instalar dependências do Worker** (nesta pasta):
 
@@ -62,6 +63,50 @@ Encaminha `https://sup.kingsengine.tech/*` para o teu projeto `https://<ref>.sup
 ```bash
 cd cloudflare/supabase-proxy && npm run deploy
 ```
+
+## Domínio na Hostinger (nameservers + DNS)
+
+O registo do domínio pode ficar na **Hostinger** para sempre. O que muda é **quem responde pelo DNS** (registos A, CNAME, etc.): para o Worker `sup.kingsengine.tech` funcionar de forma estável, a zona **`kingsengine.tech` deve estar na Cloudflare** (plano gratuito chega).
+
+### Passo A — Criar a zona na Cloudflare
+
+1. Entra em [dash.cloudflare.com](https://dash.cloudflare.com) → **Add a site** → escreve `kingsengine.tech`.
+2. Escolhe o plano **Free** → a Cloudflare importa os registos DNS que conseguir (revê a lista).
+3. A Cloudflare mostra **dois nameservers** (ex.: `ada.ns.cloudflare.com` e `bob.ns.cloudflare.com`). **Copia os dois.**
+
+### Passo B — Apontar o domínio para a Cloudflare (na Hostinger)
+
+1. Na **Hostinger** → **Domínios** → selecciona `kingsengine.tech` → **DNS / Nameservers** (ou “Alterar nameservers”).
+2. Opção **“Usar nameservers personalizados”** / **Custom nameservers**.
+3. Cola **exactamente** os dois nameservers que a Cloudflare deu → **Guardar**.
+
+> O domínio continua **registado na Hostinger**; só estás a dizer à Internet: “pergunta à Cloudflare onde está o `multi`, o `sup`, o `@`, etc.”
+
+A propagação pode levar de **minutos a 48 h** (muitas vezes menos de duas horas). Na Cloudflare, a zona fica **Active** quando estiver ok.
+
+### Passo C — Recriar na Cloudflare o que já tinhas (importante)
+
+Assim que a zona estiver na Cloudflare, **nenhum** registo antigo da Hostinger “segue” automaticamente se não foi importado. Confirma na Cloudflare → **DNS** → **Records**:
+
+| Tipo | Nome | Destino / conteúdo | Proxy |
+|------|------|---------------------|--------|
+| **CNAME** | `multi` | O que a **Vercel** pede para o teu projecto (ex.: `cname.vercel-dns.com` — vê **Project → Settings → Domains**) | Em geral **DNS only** (nuvem cinzenta), como a Vercel recomenda com Cloudflare |
+| **CNAME** | `sup` | *Opcional criar à mão:* costuma ser criado **automaticamente** quando adicionas **Custom Domain** `sup.kingsengine.tech` no Worker | **Proxied** (nuvem laranja), se a Cloudflare criar o registo |
+
+Se o site `multi.kingsengine.tech` deixar de abrir depois da mudança, falta ou está errado o CNAME **`multi`** → corrige com o valor exacto da Vercel (**Settings → Domains** do projecto).
+
+### Passo D — Worker + `sup.kingsengine.tech`
+
+Com a zona **Active** na Cloudflare:
+
+1. Faz o deploy do Worker (`npm run deploy` nesta pasta, com `SUPABASE_HOST` definido).
+2. **Workers & Pages** → worker **`multi-supabase-proxy`** → **Settings** → **Domains & Routes** → **Add** → **Custom Domain** → `sup.kingsengine.tech`.
+3. A Cloudflare adiciona o registo DNS do **`sup`** (normalmente proxied). Espera alguns minutos.
+4. Testa: `https://sup.kingsengine.tech/__multi_supabase_proxy_health` → deve responder `{"worker":"ok","upstreamConfigured":true}`.
+
+### Se não quiseres mudar nameservers agora
+
+Usa temporariamente a URL **`https://<teu-worker>.<conta>.workers.dev`** (aparece no dashboard do Worker) como `VITE_SUPABASE_URL` na Vercel e faz redeploy — não dependes do `sup` nem da Hostinger para o DNS do proxy.
 
 ## Supabase → Auth (evitar login / sessão estranhos)
 
