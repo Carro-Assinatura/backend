@@ -45,8 +45,11 @@ async function fetchProfileREST(
   const bearer = accessToken?.trim() ? accessToken.trim() : key;
   try {
     const res = await fetch(
-      `${base}/rest/v1/profiles?select=id,name,role&id=eq.${userId}`,
-      { headers: { apikey: key, Authorization: `Bearer ${bearer}` } },
+      `${base}/rest/v1/profiles?select=id,name,role&id=eq.${encodeURIComponent(userId)}`,
+      {
+        headers: { apikey: key, Authorization: `Bearer ${bearer}` },
+        cache: "no-store",
+      },
     );
     if (!res.ok) return null;
     const rows = await res.json();
@@ -62,6 +65,15 @@ async function fetchProfile(
   accessToken: string | null | undefined,
   attempt = 0,
 ): Promise<AuthUser | null> {
+  /**
+   * Imediatamente após signIn, o PostgREST do SDK por vezes ainda não leva o JWT no primeiro pedido
+   * (corrida com onAuthStateChange / proxy). O token já vem na resposta → REST com Bearer é fiável.
+   */
+  if (attempt === 0 && accessToken?.trim()) {
+    const row = await fetchProfileREST(userId, accessToken);
+    if (row) return { id: row.id, name: row.name, email, role: row.role };
+  }
+
   if (attempt >= 2) {
     const row = await fetchProfileREST(userId, accessToken);
     if (row) return { id: row.id, name: row.name, email, role: row.role };
