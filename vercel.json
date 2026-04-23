@@ -2,5 +2,22 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "cd front_end_multi && npm ci",
   "buildCommand": "cd front_end_multi && npm run build",
-  "outputDirectory": "front_end_multi/dist"
+  "outputDirectory": "front_end_multi/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/assets/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ]
 }
