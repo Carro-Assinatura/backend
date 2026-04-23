@@ -31,8 +31,21 @@ const Login = () => {
     setError("");
     setLoading(true);
 
+    const LOGIN_TIMEOUT_MS = 35_000;
+
     try {
-      await login(email, password);
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(
+            new Error(
+              `O login demorou mais de ${LOGIN_TIMEOUT_MS / 1000}s (rede ou servidor sem resposta). ` +
+                "Experimenta «Limpar sessão Supabase», rede móvel/Wi‑Fi diferente ou confirma SSL Full na Cloudflare.",
+            ),
+          );
+        }, LOGIN_TIMEOUT_MS);
+      });
+      await Promise.race([login(email, password).finally(() => clearTimeout(timeoutId!)), timeoutPromise]);
       navigate("/admin");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erro ao fazer login");

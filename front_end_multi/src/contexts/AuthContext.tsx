@@ -126,16 +126,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!data.user) throw new Error("Resposta de autenticação incompleta. Tenta de novo.");
 
-    const session = data.session;
-    if (session) {
-      await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      });
-    }
-
-    const { data: { session: s2 } } = await supabase.auth.getSession();
-    const accessToken = s2?.access_token ?? session?.access_token;
+    /**
+     * Não usar await setSession() aqui: o signInWithPassword já actualiza o cliente; setSession
+     * pode bloquear ou competir com onAuthStateChange + fetchProfile noutro tick (spinner infinito em produção).
+     */
+    const accessToken = data.session?.access_token;
 
     let profile = await fetchProfile(data.user.id, data.user.email ?? "", accessToken);
 
