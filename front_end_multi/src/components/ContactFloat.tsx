@@ -36,12 +36,17 @@ const ContactFloat = () => {
   const isHidden = location.pathname.startsWith("/admin") || location.pathname === "/campanha";
 
   useEffect(() => {
-    if (!showBot || !config?.webhook_url) return;
+    /** Sem div no DOM (mobile só WhatsApp, /admin, /campanha): não marcar init — senão o ref bloqueia e o bot nunca aparece ao voltar à home. */
+    if (isHidden || isMobile || !showBot || !config?.webhook_url) return;
 
     let mounted = true;
 
     const initChat = async () => {
       if (chatInitialized.current) return;
+
+      const target = document.getElementById(N8N_CHAT_TARGET_ID);
+      if (!target || target.hasChildNodes()) return;
+
       chatInitialized.current = true;
 
       try {
@@ -49,9 +54,6 @@ const ContactFloat = () => {
         const { createChat } = await import("@n8n/chat");
 
         if (!mounted) return;
-
-        const target = document.getElementById(N8N_CHAT_TARGET_ID);
-        if (!target || target.hasChildNodes()) return;
 
         const initialMessages = Array.isArray(config.initial_messages) && config.initial_messages.length > 0
           ? config.initial_messages
@@ -89,7 +91,7 @@ const ContactFloat = () => {
       mounted = false;
       chatInitialized.current = false;
     };
-  }, [showBot, config]);
+  }, [isHidden, isMobile, showBot, config]);
 
   // Ouvir evento para abrir o chat (usado pelos botões "Falar no WhatsApp" no desktop)
   useEffect(() => {
