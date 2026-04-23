@@ -162,10 +162,10 @@ function carPricesToDisplay(
     });
 }
 
-async function fetchCarsForSite(carSource: string): Promise<CarDisplay[]> {
-  const imageMap = await getCarImagesMap();
-  const imgMap = imageMap ?? new Map<string, string>();
-
+async function fetchCarsForSite(
+  carSource: string,
+  imgMap: Map<string, string>,
+): Promise<CarDisplay[]> {
   if (carSource === "importar") {
     const [carPrices, promos] = await Promise.all([
       api.getCarPricesForSite(),
@@ -212,18 +212,18 @@ export function useCarsData() {
 
   const carSource = carSourceQuery.data ?? "";
 
-  const query = useQuery({
-    queryKey: [...CARS_QUERY_KEY, carSource],
-    queryFn: () => fetchCarsForSite(carSource),
-    staleTime: 5 * 60 * 1000,
-    retry: 2,
-    enabled: carSourceQuery.isSuccess,
-  });
-
   const imageMapQuery = useQuery({
     queryKey: ["car-images-map"],
     queryFn: getCarImagesMap,
     staleTime: 5 * 60 * 1000,
+  });
+
+  const query = useQuery({
+    queryKey: [...CARS_QUERY_KEY, carSource],
+    queryFn: () => fetchCarsForSite(carSource, imageMapQuery.data ?? new Map()),
+    staleTime: 5 * 60 * 1000,
+    retry: 2,
+    enabled: carSourceQuery.isSuccess && imageMapQuery.isFetched,
   });
 
   const [cars, setCars] = useState<CarDisplay[]>([]);
@@ -242,7 +242,7 @@ export function useCarsData() {
     cars,
     carSource: effectiveCarSource,
     imageMap: imageMapQuery.data ?? new Map<string, string>(),
-    isLoading: query.isLoading || carSourceQuery.isLoading,
+    isLoading: query.isLoading || carSourceQuery.isLoading || imageMapQuery.isLoading,
     imagesLoading: imageMapQuery.isLoading,
     isError: query.isError,
     error: query.error,

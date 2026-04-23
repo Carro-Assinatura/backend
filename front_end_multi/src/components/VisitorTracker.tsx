@@ -68,16 +68,21 @@ export default function VisitorTracker() {
     if (location.pathname === prevPath.current) return;
 
     const now = Date.now();
-    const duration = prevPath.current ? Math.round((now - pageEnteredAt.current) / 1000) : 0;
-
-    if (prevPath.current && duration > 0) {
-      sendEvent("page_duration", prevPath.current, duration);
-    }
+    const oldPath = prevPath.current;
+    const duration = oldPath ? Math.round((now - pageEnteredAt.current) / 1000) : 0;
 
     prevPath.current = location.pathname;
     pageEnteredAt.current = now;
 
-    sendEvent("pageview", location.pathname + location.search, 0);
+    const delayMs = 2000;
+    const timer = window.setTimeout(() => {
+      if (oldPath && duration > 0) {
+        sendEvent("page_duration", oldPath, duration);
+      }
+      sendEvent("pageview", location.pathname + location.search, 0);
+    }, delayMs);
+
+    return () => clearTimeout(timer);
   }, [location]);
 
   useEffect(() => {
@@ -112,5 +117,5 @@ function sendEvent(eventType: string, pageUrl: string, durationSeconds: number) 
     screen_resolution: `${window.screen.width}x${window.screen.height}`,
     duration_seconds: durationSeconds,
     metadata: {},
-  }).then(() => {});
+  }).catch(() => {});
 }
