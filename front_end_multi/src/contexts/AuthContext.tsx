@@ -18,6 +18,21 @@ const ROLE_LEVEL: Record<string, number> = {
   analista: 1,
 };
 
+/** Mensagens comuns do GoTrue em inglês → texto útil em produção. */
+function mapAuthLoginError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("invalid login credentials") || m.includes("invalid credentials")) {
+    return "E-mail ou palavra-passe incorretos.";
+  }
+  if (m.includes("email not confirmed")) {
+    return "E-mail ainda não confirmado. Abre o link que o Supabase enviou, ou em Supabase → Authentication → Providers desactiva «Confirm email» para testes.";
+  }
+  if (m.includes("too many requests") || m.includes("rate limit")) {
+    return "Muitas tentativas. Espera alguns minutos e tenta de novo.";
+  }
+  return message;
+}
+
 const AuthContext = createContext<AuthState | null>(null);
 
 async function fetchProfileREST(
@@ -107,20 +122,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(mapAuthLoginError(error.message));
 
-    if (data.user) {
-      const profile = await fetchProfile(data.user.id, data.user.email ?? "", data.session?.access_token);
-      if (!profile) throw new Error("Perfil não encontrado. Contate o administrador.");
-      if (!profile.role) throw new Error("Usuário sem permissão definida.");
-      setUser(profile);
+    if (!data.user) throw new Error("Resposta de autenticação incompleta. Tenta de novo.");
 
-      supabase.from("audit_log").insert({
-        user_id: data.user.id,
-        action: "login",
-        details: `Login: ${email}`,
-      }).then(null, () => {});
+    const session = data.session;
+    if (session) {
+      await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
     }
+
+    const { data: { session: s2 } } = await supabase.auth.getSession();
+    const accessToken = s2?.access_token ?? session?.access_token;
+
+    let profile = await fetchProfile(data.user.id, data.user.email ?? "", accessToken);
+
+    if (!profile) {
+      const { data: prow, error: peek } = await supabase
+        .from("profiles")
+        .select("id, name, role")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      if (peek) {
+        await supabase.auth.signOut();
+        throw new Error(
+          `Não foi possível ler o perfil: ${peek.message}. ` +
+            "Confirma no Supabase que executaste o SQL de RLS (ex.: supabase-fix-rls.sql) e que o proxy Cloudflare não bloqueia pedidos REST.",
+        );
+      }
+      if (!prow) {
+        await supabase.auth.signOut();
+        throw new Error(
+          "A conta existe em Authentication mas não há linha em «profiles» com o mesmo id. " +
+            "Um administrador deve criar o utilizador na intranet (Utilizadores) ou sincronizar auth → profiles.",
+        );
+      }
+      if (!prow.role) {
+        await supabase.auth.signOut();
+        throw new Error("O teu utilizador existe em «profiles» mas sem cargo (role). Peça ao administrador para definir a função.");
+      }
+      profile = {
+        id: prow.id,
+        name: prow.name ?? "",
+        email: data.user.email ?? "",
+        role: prow.role,
+      };
+    }
+
+    if (!profile.role) {
+      await supabase.auth.signOut();
+      throw new Error("Usuário sem permissão definida (role vazio).");
+    }
+
+    setUser(profile);
+
+    supabase.from("audit_log").insert({
+      user_id: data.user.id,
+      action: "login",
+      details: `Login: ${email}`,
+    }).then(null, () => {});
   };
 
   const logout = () => {
