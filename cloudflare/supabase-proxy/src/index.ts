@@ -11,7 +11,7 @@ export interface Env {
 
 const CORS_METHODS = "GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS";
 const CORS_HEADERS_FALLBACK =
-  "authorization,apikey,content-type,prefer,x-client-info,x-supabase-api-version,accept-profile,content-profile,range,accept,x-upsert";
+  "authorization,apikey,content-type,prefer,x-client-info,x-supabase-api-version,accept-profile,content-profile,range,accept,x-upsert,accept-encoding";
 
 function stripUpstreamCors(h: Headers): void {
   const keys = [...h.keys()].filter((k) => k.toLowerCase().startsWith("access-control-"));
@@ -41,8 +41,30 @@ function handleOptions(request: Request): Response {
   return new Response(null, { status: 204, headers: h });
 }
 
+const HEALTH_PATH = "/__multi_supabase_proxy_health";
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const incoming = new URL(request.url);
+
+    /** Diagnóstico na rede móvel (ex. Claro 5G): confirma DNS/TLS até à Cloudflare e se o secret existe. */
+    if (incoming.pathname === HEALTH_PATH) {
+      if (request.method === "OPTIONS") return handleOptions(request);
+      const host = String(env.SUPABASE_HOST ?? "").trim().toLowerCase();
+      const upstreamConfigured = Boolean(
+        host && !host.includes("/") && host.endsWith(".supabase.co"),
+      );
+      return withCors(
+        new Response(
+          JSON.stringify({ worker: "ok", upstreamConfigured }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json; charset=utf-8" },
+          },
+        ),
+      );
+    }
+
     const host = String(env.SUPABASE_HOST ?? "").trim().toLowerCase();
     if (!host || host.includes("/") || !host.endsWith(".supabase.co")) {
       return new Response("Configure o secret SUPABASE_HOST (ex.: ref.supabase.co)", {
@@ -52,8 +74,6 @@ export default {
     }
 
     if (request.method === "OPTIONS") return handleOptions(request);
-
-    const incoming = new URL(request.url);
     incoming.protocol = "https:";
     incoming.hostname = host;
     incoming.port = "";
