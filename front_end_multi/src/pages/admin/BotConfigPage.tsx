@@ -264,10 +264,16 @@ const BotConfigPage = () => {
           />
         </div>
 
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
             <Label className="text-sm font-medium">Carregar sessão anterior</Label>
-            <p className="text-xs text-slate-500">Manter histórico da conversa ao reabrir</p>
+            <p className="text-xs text-slate-500">Manter histórico da conversa ao reabrir o site</p>
+            <p className="text-xs text-amber-700 mt-1.5 leading-snug">
+              Ao abrir o chat, o widget chama o mesmo webhook com a ação{" "}
+              <code className="rounded bg-amber-100/80 px-1">loadPreviousSession</code>. Se o N8N ou a rede
+              demorarem ou falharem (CORS, 429, workflow preso), a página pode ficar lenta ou o bot parecer
+              sumir até limpar dados do site. Se notar isso, desative aqui ou corrija o fluxo no N8N.
+            </p>
           </div>
           <Switch
             checked={form.load_previous_session ?? true}
