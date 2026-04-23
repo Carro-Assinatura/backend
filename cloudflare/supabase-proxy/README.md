@@ -117,9 +117,7 @@ Quando o DNS de **`multi.seudominio.com`** passa pela Cloudflare (**nuvem laranj
 1. **SSL/TLS** → modo **Full** ou **Full (strict)**.  
    **Nunca “Flexible”** com origem na Vercel: pode partir pedidos HTTPS, redireccionamentos ou JavaScript de forma imprevisível.
 
-2. **Registo DNS do `multi`**  
-   CNAME para o destino que a **Vercel** indica em *Project → Settings → Domains* (ex.: `cname.vercel-dns.com` ou similar).  
-   Se o site não abrir de todo, o CNAME está errado antes de culpar o Supabase.
+2. **Registo DNS do `multi`** — passo a passo na secção seguinte.
 
 3. **Testar sem proxy (diagnóstico)**  
    No registo **CNAME** do `multi`, liga temporariamente **DNS only** (nuvem **cinzenta**). Se **login e bot voltarem a funcionar**, o problema está nas opções com proxy laranja (SSL, cache, WAF). A Vercel [recomenda](https://vercel.com/guides/using-cloudflare-with-vercel) muitas vezes **DNS only** para o subdomínio que aponta para eles.
@@ -138,6 +136,49 @@ Quando o DNS de **`multi.seudominio.com`** passa pela Cloudflare (**nuvem laranj
 - **Supabase** → *Authentication* → **URL Configuration**: **Site URL** = `https://multi.seudominio.com` (HTTPS, sem barra final se o dashboard assim pedir). **Redirect URLs** deve incluir essa URL e `http://localhost:8080` para desenvolvimento.
 
 - **n8n** → nó **Chat Trigger** → **Allowed Origins (CORS)** deve incluir **exactamente** a origem de produção, por exemplo `https://multi.seudominio.com` (sem path). Sem isto o chat em produção falha mesmo com Supabase a funcionar.
+
+### Passo a passo: CNAME do `multi` (o que a Vercel pede + Cloudflare)
+
+O objectivo é: **`https://multi.seudominio.com`** → tráfego → **Vercel** (projecto correcto). O nome e o **alvo** do CNAME vêm sempre da **Vercel**; na Cloudflare só **crias o mesmo** registo.
+
+#### A) Na Vercel — ver o que tens de criar no DNS
+
+1. Entra em [vercel.com](https://vercel.com) e abre o **team** e o **projecto** onde está o site (ex.: o que faz deploy do `front_end_multi`).
+2. No menu do projecto: **Settings** (Definições) → **Domains** (Domínios).
+3. Clica em **Add** / **Add Domain** e escreve o domínio completo, por exemplo **`multi.kingsengine.tech`** (ou o teu), e confirma.
+4. A Vercel mostra uma área do tipo **“Configure DNS”** / **“DNS Records”** com instruções. Anota **exactamente**:
+   - **Tipo** de registo (quase sempre **CNAME** para um subdomínio como `multi`).
+   - **Name** / **Host** (muitas vezes `multi` ou `multi.seudominio.com` — na Cloudflare costuma ser só **`multi`**).
+   - **Value** / **Target** / **Points to** — exemplos comuns: `cname.vercel-dns.com` ou `xxxxxx.vercel-dns-000.com` (a Vercel muda conforme a região; **copia o valor que aparece no teu ecrã**, sem `https://`, sem barra no fim).
+5. Se o domínio já estava adicionado mas aparece **Invalid Configuration**, abre esse domínio na lista: a Vercel volta a mostrar **os mesmos** registos que faltam ou estão errados no DNS.
+
+> **Raiz do domínio (`seudominio.com` sem `multi`):** a Vercel pode pedir um registo **A** em vez de CNAME. Segue o que o ecrã da Vercel disser (não uses valores de tutoriais genéricos).
+
+#### B) Na Cloudflare — criar o registo DNS
+
+1. Entra em [dash.cloudflare.com](https://dash.cloudflare.com) e escolhe a **zona** do domínio (ex.: `kingsengine.tech`).
+2. Menu **DNS** → **Records** → **Add record**.
+3. Preenche:
+   - **Type:** `CNAME` (se a Vercel pediu CNAME).
+   - **Name:** normalmente **`multi`** — a Cloudflare trata isto como `multi.kingsengine.tech`. (Se a Vercel mostrar o nome completo, na Cloudflare continua a ser habitual usar só a parte **`multi`**; evita duplicar `.kingsengine.tech` no campo Name.)
+   - **Target:** cola o valor que a Vercel deu (ex.: `cname.vercel-dns.com`). Alguns painéis querem um ponto final (`cname.vercel-dns.com.`); a Cloudflare aceita com ou sem; mantém **sem** `https://`.
+   - **Proxy status:** começa com **DNS only** (nuvem **cinzenta**) se estiveres a diagnosticar problemas; depois podes experimentar **Proxied** (laranja) com **SSL/TLS = Full (strict)**.
+4. Guarda o registo (**Save**).
+
+Aguarda **alguns minutos** (por vezes até ~1 h) pela propagação. Podes testar no terminal: `dig +short multi.kingsengine.tech` — deve acabar por mostrar um destino relacionado com a Vercel ou IPs da Cloudflare se estiver proxied.
+
+#### C) Na Vercel — confirmar que ficou válido
+
+1. Volta a **Settings → Domains** do mesmo projecto.
+2. O domínio **`multi.kingsengine.tech`** deve passar a **Valid** / **Configured** (ícone verde ou mensagem de sucesso). Se continuar **Invalid**, o Name ou o Target na Cloudflare não coincidem com o que a Vercel pediu — corrige e espera de novo.
+
+#### D) Abrir o site
+
+Abre no browser **`https://multi.kingsengine.tech`** (HTTPS). Se abrir a página do projecto, o CNAME está correcto.
+
+#### Se o DNS ainda estiver na Hostinger (sem zona na Cloudflare)
+
+O fluxo é o mesmo: em **Domínios** → **DNS / Zone Editor** da Hostinger, cria um registo **CNAME** com o **mesmo Name** e **mesmo Target** que a Vercel mostrou (Host = `multi`, aponta para `cname.vercel-dns.com` ou o valor exacto do painel Vercel). A Hostinger pode chamar o campo “Aponta para”, “Target”, “CNAME”.
 
 ## Supabase → Auth (evitar login / sessão estranhos)
 
