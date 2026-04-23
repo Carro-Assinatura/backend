@@ -20,7 +20,14 @@ if (!isSupabaseConfigured) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, anonKey);
+const browserAuth = {
+  autoRefreshToken: true,
+  persistSession: true,
+  detectSessionInUrl: true,
+  flowType: "pkce" as const,
+};
+
+export const supabase = createClient(supabaseUrl, anonKey, { auth: browserAuth });
 
 export const supabaseIsolated = createClient(supabaseUrl, anonKey, {
   auth: { autoRefreshToken: false, persistSession: false },

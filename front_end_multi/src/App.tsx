@@ -1,4 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -26,7 +27,36 @@ import ContactFloat from "./components/ContactFloat.tsx";
 import FaviconSync from "./components/FaviconSync.tsx";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      networkMode: "online",
+    },
+  },
+});
+
+/** Após troca de rede ou tab em segundo plano, revalida dados (Supabase / API). */
+function QueryRefetchOnReconnect() {
+  const qc = useQueryClient();
+  useEffect(() => {
+    const bump = () => {
+      void qc.invalidateQueries({ refetchType: "active" });
+    };
+    const onVis = () => {
+      if (document.visibilityState === "visible") bump();
+    };
+    window.addEventListener("online", bump);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("online", bump);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [qc]);
+  return null;
+}
 
 /** BASE_URL da Vite é "/" na raiz; basename vazio quebra o React Router — usar undefined. */
 const viteBase = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
@@ -34,6 +64,7 @@ const routerBasename = viteBase.length > 0 ? viteBase : undefined;
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <QueryRefetchOnReconnect />
     <TooltipProvider>
       <Toaster />
       <Sonner />
