@@ -1281,7 +1281,7 @@ export const api = {
       if (!isNaN(n)) query = query.eq("prazo_contrato", n);
     }
     if (orderBy) {
-      query = query.order(orderBy, { ascending: orderAscending ?? true, nullsFirst: false });
+      query = query.order(orderBy, { ascending: orderAscending ?? true });
       query = query.order("id", { ascending: true });
     } else {
       query = query.order("created_at", { ascending: false });

@@ -139,8 +139,10 @@ export async function getCarImagesMap(): Promise<Map<string, string>> {
 
   const map = new Map<string, string>();
   for (const row of data ?? []) {
-    const url = rewriteSupabaseMediaUrl(row.image_url) ?? row.image_url;
-    map.set(row.car_name.toLowerCase().trim(), url);
+    const name = String(row.car_name ?? "").toLowerCase().trim();
+    if (!name) continue;
+    const url = rewriteSupabaseMediaUrl(row.image_url) ?? row.image_url ?? "";
+    map.set(name, url);
   }
   return map;
 }

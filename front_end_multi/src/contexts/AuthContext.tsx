@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { supabase, supabaseIsolated } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import type { AuthUser } from "@/services/api";
 
 interface AuthState {
@@ -20,14 +20,18 @@ const ROLE_LEVEL: Record<string, number> = {
 
 const AuthContext = createContext<AuthState | null>(null);
 
-async function fetchProfileREST(userId: string): Promise<{ id: string; name: string; role: string } | null> {
+async function fetchProfileREST(
+  userId: string,
+  accessToken: string | null | undefined,
+): Promise<{ id: string; name: string; role: string } | null> {
   const base = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim();
   const key = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? "").trim();
   if (!base || !key) return null;
+  const bearer = accessToken?.trim() ? accessToken.trim() : key;
   try {
     const res = await fetch(
       `${base}/rest/v1/profiles?select=id,name,role&id=eq.${userId}`,
-      { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+      { headers: { apikey: key, Authorization: `Bearer ${bearer}` } },
     );
     if (!res.ok) return null;
     const rows = await res.json();
@@ -37,14 +41,20 @@ async function fetchProfileREST(userId: string): Promise<{ id: string; name: str
   }
 }
 
-async function fetchProfile(userId: string, email: string, attempt = 0): Promise<AuthUser | null> {
+async function fetchProfile(
+  userId: string,
+  email: string,
+  accessToken: string | null | undefined,
+  attempt = 0,
+): Promise<AuthUser | null> {
   if (attempt >= 2) {
-    const row = await fetchProfileREST(userId);
+    const row = await fetchProfileREST(userId, accessToken);
     if (row) return { id: row.id, name: row.name, email, role: row.role };
     return null;
   }
 
-  const { data, error } = await supabaseIsolated
+  /** Cliente principal: envia o JWT da sessão (RLS). Isolated não partilha sessão com signIn. */
+  const { data, error } = await supabase
     .from("profiles")
     .select("id, name, role")
     .eq("id", userId)
@@ -53,13 +63,13 @@ async function fetchProfile(userId: string, email: string, attempt = 0): Promise
   if (error) {
     console.warn("[fetchProfile] erro:", error.message, "attempt:", attempt);
     await new Promise((r) => setTimeout(r, 600));
-    return fetchProfile(userId, email, attempt + 1);
+    return fetchProfile(userId, email, accessToken, attempt + 1);
   }
 
   if (!data) {
     console.warn("[fetchProfile] sem dados, attempt:", attempt);
     await new Promise((r) => setTimeout(r, 600));
-    return fetchProfile(userId, email, attempt + 1);
+    return fetchProfile(userId, email, accessToken, attempt + 1);
   }
 
   return { id: data.id, name: data.name, email, role: data.role };
@@ -72,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadProfile = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
-      const profile = await fetchProfile(session.user.id, session.user.email ?? "");
+      const profile = await fetchProfile(session.user.id, session.user.email ?? "", session.access_token);
       setUser(profile);
     } else {
       setUser(null);
@@ -85,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        const profile = await fetchProfile(session.user.id, session.user.email ?? "");
+        const profile = await fetchProfile(session.user.id, session.user.email ?? "", session.access_token);
         setUser(profile);
       } else {
         setUser(null);
@@ -100,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(error.message);
 
     if (data.user) {
-      const profile = await fetchProfile(data.user.id, data.user.email ?? "");
+      const profile = await fetchProfile(data.user.id, data.user.email ?? "", data.session?.access_token);
       if (!profile) throw new Error("Perfil não encontrado. Contate o administrador.");
       if (!profile.role) throw new Error("Usuário sem permissão definida.");
       setUser(profile);
