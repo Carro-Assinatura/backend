@@ -22,6 +22,14 @@ if (!isSupabaseConfigured) {
 
 export const supabase = createClient(supabaseUrl, anonKey);
 
+/** Chave de storage distinta do cliente principal — evita aviso "Multiple GoTrueClient instances" no console. */
+const ISOLATED_AUTH_STORAGE_KEY = "sb-multi-isolated-auth-token";
+
 export const supabaseIsolated = createClient(supabaseUrl, anonKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+    storageKey: ISOLATED_AUTH_STORAGE_KEY,
+    detectSessionInUrl: false,
+  },
 });
