@@ -94,6 +94,23 @@ Há **duas** camadas diferentes; confunde-se com facilidade:
 
 **Se “antes funcionava” no 5G:** faz `npm run deploy` nesta pasta outra vez (código ou secrets na Cloudflare podem ter sido alterados). Confirma no Dashboard do Worker que o **custom domain** `sup.kingsengine.tech` continua ligado a este worker.
 
+### `dig sup.kingsengine.tech` vazio (subdomínio não existe na Internet)
+
+Se no Mac ou num serviço online de DNS o resultado for **vazio**, nenhum browser na Claro 5G (nem noutra rede) consegue falar com o proxy — **não é bug do código**.
+
+Causas típicas:
+
+- O domínio **`kingsengine.tech` não está com a zona DNS na Cloudflare** (ex.: só o `multi` está na Vercel via CNAME, mas ninguém criou o registo **`sup`**).
+- O **custom domain** do Worker foi removido ou nunca foi concluído no dashboard.
+
+**Correcção (escolhe uma):**
+
+1. **Zona na Cloudflare** — Workers → `multi-supabase-proxy` → **Domains** → **Add** → `sup.kingsengine.tech` (a Cloudflare cria o DNS se a zona `kingsengine.tech` estiver lá).  
+2. **DNS fora da Cloudflare** — no sítio onde geres os DNS do `kingsengine.tech`, cria o registo que a Cloudflare indica ao adicionares o custom domain ao Worker (muitas vezes um CNAME para `*.workers.dev` ou o target que o assistente de domínio mostrar).  
+3. **Solução rápida sem `sup.*`:** no dashboard do Worker, copia a URL **`https://<nome-do-worker>.<subdomínio-da-conta>.workers.dev`**, coloca-a em **`VITE_SUPABASE_URL`** na **Vercel** (Production) e faz **Redeploy**. Esse hostname da Cloudflare costuma resolver bem na Claro enquanto não arranjas o `sup.kingsengine.tech`.
+
+**Confirma também o site (Vercel):** o bundle **não** pode conter `invalid-env-not-set`. Se contiver, em **Vercel → Project → Settings → Environment Variables** tens de ter `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` em **Production**, **Save**, e **Redeploy** (rebuild).
+
 ## Notas
 
 - **Realtime (WebSocket)** não passa por este proxy; este projecto usa sobretudo REST + Auth.
