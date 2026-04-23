@@ -866,7 +866,7 @@ export const api = {
   /* Bot Config (N8N) */
   getBotConfig: async (): Promise<BotConfig | null> => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseIsolated
         .from("bot_config")
         .select("*")
         .limit(1)
@@ -1725,7 +1725,7 @@ export const api = {
   },
 
   getTestimonialsPublic: async (): Promise<TestimonialWithClient[]> => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseIsolated
       .from("testimonials")
       .select(`
         *,

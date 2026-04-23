@@ -20,12 +20,18 @@ if (!isSupabaseConfigured) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, anonKey);
+/** Timeout PostgREST evita pedidos pendurados indefinidamente (ex.: rede/proxy lenta). */
+const DB_TIMEOUT_MS = 30_000;
+
+export const supabase = createClient(supabaseUrl, anonKey, {
+  db: { timeout: DB_TIMEOUT_MS },
+});
 
 /** Chave de storage distinta do cliente principal — evita aviso "Multiple GoTrueClient instances" no console. */
 const ISOLATED_AUTH_STORAGE_KEY = "sb-multi-isolated-auth-token";
 
 export const supabaseIsolated = createClient(supabaseUrl, anonKey, {
+  db: { timeout: DB_TIMEOUT_MS },
   auth: {
     autoRefreshToken: false,
     persistSession: false,
