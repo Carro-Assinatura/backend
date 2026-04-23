@@ -50,4 +50,3 @@ Se **localhost** funciona (login + bot) e **só o domínio em produção** falha
 - **Cache (Cloudflare em frente à Vercel):** no painel Cloudflare → **Caching** → **Purge Everything** (ou pelo menos o domínio do site) depois de cada **Redeploy** com variáveis novas. Um `index.html` antigo pode carregar um JS antigo ou errado.
 - **Variáveis na Vercel:** `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` têm de existir em **Production**; cada alteração exige **Redeploy** (o Vite embute no build).
 - **No browser:** em `/admin/login` usa **«Limpar sessão Supabase neste site e recarregar»** se dados antigos atrapalharem.
-- O código revalida queries ao **voltar à aba** ou quando a **rede fica online** de novo (menos falhas após 5G/Wi‑Fi ou ecrã bloqueado).
