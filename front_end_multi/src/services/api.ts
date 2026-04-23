@@ -359,14 +359,20 @@ export function buildUtmUrl(
   return url.toString();
 }
 
+/** `getUser()` chama o servidor Auth em cada uso; em intranet com muitos `auditLog` isso esgota limites do proxy. */
 async function currentUserId(): Promise<string | undefined> {
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user?.id;
 }
 
 async function auditLog(action: string, details: string) {
-  const uid = await currentUserId();
-  await supabase.from("audit_log").insert({ user_id: uid, action, details });
+  try {
+    const uid = await currentUserId();
+    const { error } = await supabase.from("audit_log").insert({ user_id: uid, action, details });
+    if (error) console.warn("[auditLog]", action, error.message);
+  } catch (e) {
+    console.warn("[auditLog]", action, e instanceof Error ? e.message : e);
+  }
 }
 
 async function enrichAuditRows(rows: Array<{ id: number; user_id: string; action: string; details: string; created_at: string }>): Promise<AuditItem[]> {
