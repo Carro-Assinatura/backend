@@ -1,0 +1,16 @@
+# Proxy transparente → *.supabase.co (REST, Auth, Storage, Edge Functions).
+# Domínio sup.kingsengine.tech: configurar em Workers → este worker → Custom domains
+# (ou rotas), depois de fazer deploy.
+#
+# Secret obrigatório (sem https://):
+#   npx wrangler secret put SUPABASE_HOST
+# Valor exemplo: abcdefghijklmnop.supabase.co
+
+name = "multi-supabase-proxy"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Opcional: descomente e ajuste zone_name se quiseres fixar a rota no deploy.
+# [[routes]]
+# pattern = "https://sup.kingsengine.tech/*"
+# zone_name = "kingsengine.tech"

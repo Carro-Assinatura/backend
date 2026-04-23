@@ -5,6 +5,8 @@
  * Pré-requisito: rodar o SQL do arquivo supabase-setup.sql no Supabase Dashboard > SQL Editor
  *
  * Uso: SUPABASE_URL=xxx SUPABASE_SERVICE_KEY=xxx node seed-supabase.mjs
+ * Reativar admin (perfil active + desbanir no Auth):
+ *   SUPABASE_URL=xxx SUPABASE_SERVICE_KEY=xxx node seed-supabase.mjs reactivate
  * Ou crie um .env na pasta front_end_multi com essas variáveis.
  */
 
@@ -118,7 +120,83 @@ async function seedSettings() {
   }
 }
 
+const ADMIN_EMAIL = "admin@multi.com.br";
+
+async function findAuthUserByEmail(email) {
+  const target = email.trim().toLowerCase();
+  let page = 1;
+  const perPage = 200;
+  for (;;) {
+    const res = await fetch(
+      `${SUPABASE_URL}/auth/v1/admin/users?page=${page}&per_page=${perPage}`,
+      { headers },
+    );
+    if (!res.ok) {
+      console.error("Erro ao listar usuários Auth:", await res.text());
+      return null;
+    }
+    const data = await res.json();
+    const users = data.users ?? [];
+    const found = users.find((u) => (u.email ?? "").toLowerCase() === target);
+    if (found) return found;
+    if (users.length < perPage) return null;
+    page += 1;
+    if (page > 50) {
+      console.error("Limite de páginas ao buscar usuário.");
+      return null;
+    }
+  }
+}
+
+/** Reativa perfil (active) e remove banimento / confirma e-mail no Auth. */
+async function reactivateAdminProfile() {
+  console.log(`Reativando ${ADMIN_EMAIL}...`);
+  const authUser = await findAuthUserByEmail(ADMIN_EMAIL);
+  if (!authUser?.id) {
+    console.error("Usuário não encontrado no Auth. Rode o seed completo (sem 'reactivate') para criar o admin.");
+    process.exit(1);
+  }
+
+  const putRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${authUser.id}`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({
+      ban_duration: "none",
+      email_confirm: true,
+    }),
+  });
+  const putBody = await putRes.json().catch(() => ({}));
+  if (!putRes.ok) {
+    console.error("Erro ao atualizar usuário no Auth:", putBody);
+    process.exit(1);
+  }
+  console.log("Auth: ban removido / e-mail confirmado.");
+
+  const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${authUser.id}`, {
+    method: "PATCH",
+    headers: { ...headers, Prefer: "return=minimal" },
+    body: JSON.stringify({
+      active: true,
+      role: "admin",
+      email: ADMIN_EMAIL,
+      updated_at: new Date().toISOString(),
+    }),
+  });
+  if (!patchRes.ok) {
+    const err = await patchRes.json().catch(() => ({}));
+    console.error("Erro ao atualizar profiles:", err);
+    process.exit(1);
+  }
+  console.log("profiles: active=true, role=admin.");
+  console.log("\nPronto. Tente login na intranet com admin@multi.com.br (senha conforme definida no projeto).");
+}
+
 async function main() {
+  const mode = process.argv[2];
+  if (mode === "reactivate") {
+    await reactivateAdminProfile();
+    return;
+  }
   await createAdminUser();
   await seedSettings();
   console.log("\nSeed concluído!");

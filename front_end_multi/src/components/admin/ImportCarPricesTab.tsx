@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type CarPrice, type CarPricePromotionAdminSummary } from "@/services/api";
 import { Button } from "@/components/ui/button";
@@ -26,8 +26,10 @@ import {
   Table2,
   Trash2,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   ArrowRight,
+  ArrowUpDown,
   HelpCircle,
   Pencil,
   Search,
@@ -62,6 +64,111 @@ function formatIsoDateEndsOnPtBR(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
 }
+
+/** Colunas ordenáveis da tabela «Carros importados». */
+type ImportedSortCol =
+  | "marca"
+  | "nome_carro"
+  | "modelo_carro"
+  | "franquia_km_mes"
+  | "prazo_contrato"
+  | "valor_mensal_locacao";
+
+function compareParsedCarPriceRows(
+  a: ParsedCarPriceRow,
+  b: ParsedCarPriceRow,
+  col: keyof ParsedCarPriceRow,
+  asc: boolean,
+): number {
+  const dir = asc ? 1 : -1;
+  const va = a[col];
+  const vb = b[col];
+  if (col === "source_row") {
+    const na = Number(va) || 0;
+    const nb = Number(vb) || 0;
+    return na === nb ? 0 : na < nb ? -dir : dir;
+  }
+  if (
+    col === "franquia_km_mes" ||
+    col === "prazo_contrato" ||
+    col === "valor_mensal_locacao" ||
+    col === "valor_km_excedido"
+  ) {
+    const parseNum = (x: unknown) => {
+      if (typeof x === "number" && Number.isFinite(x)) return x;
+      const s = String(x ?? "")
+        .replace(/\s/g, "")
+        .replace(/\./g, "")
+        .replace(",", ".");
+      const n = parseFloat(s);
+      return Number.isFinite(n) ? n : NaN;
+    };
+    const na = parseNum(va);
+    const nb = parseNum(vb);
+    if (!Number.isNaN(na) && !Number.isNaN(nb) && na !== nb) return na < nb ? -dir : dir;
+    if (!Number.isNaN(na) && Number.isNaN(nb)) return -dir;
+    if (Number.isNaN(na) && !Number.isNaN(nb)) return dir;
+  }
+  const sa = String(va ?? "").toLocaleLowerCase("pt-BR");
+  const sb = String(vb ?? "").toLocaleLowerCase("pt-BR");
+  if (sa < sb) return -dir;
+  if (sa > sb) return dir;
+  return 0;
+}
+
+function SortableTableHeader({
+  children,
+  active,
+  ascending,
+  onClick,
+  nowrap,
+}: {
+  children: ReactNode;
+  active: boolean;
+  ascending: boolean;
+  onClick: () => void;
+  nowrap?: boolean;
+}) {
+  return (
+    <th className={`text-left px-3 py-2 font-medium ${nowrap ? "whitespace-nowrap" : ""}`}>
+      <button
+        type="button"
+        className={`inline-flex items-center gap-1 rounded px-1 py-0.5 -mx-1 hover:bg-slate-200/80 w-full text-left${active ? " font-semibold text-slate-900" : ""}`}
+        onClick={onClick}
+      >
+        <span className="min-w-0 truncate">{children}</span>
+        {active ? (
+          ascending ? (
+            <ChevronUp className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+          ) : (
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+          )
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 shrink-0 opacity-35" aria-hidden />
+        )}
+      </button>
+    </th>
+  );
+}
+
+const PREVIEW_SORTABLE_COLUMNS: { key: keyof ParsedCarPriceRow; label: string }[] = [
+  { key: "marca", label: "Marca" },
+  { key: "nome_carro", label: "Nome do Carro" },
+  { key: "modelo_carro", label: "Modelo" },
+  { key: "categoria", label: "Categoria" },
+  { key: "prazo_contrato", label: "Prazo Contrato" },
+  { key: "franquia_km_mes", label: "Franquia km/mês" },
+  { key: "tipo_pintura", label: "Tipo Pintura" },
+  { key: "troca_pneus", label: "Troca Pneus" },
+  { key: "manutencao", label: "Manutenção" },
+  { key: "seguro", label: "Seguro" },
+  { key: "carro_reserva", label: "Carro Reserva" },
+  { key: "insulfilm", label: "Insulfilm" },
+  { key: "valor_km_excedido", label: "Valor km Excedido" },
+  { key: "valor_mensal_locacao", label: "Valor Mensal" },
+  { key: "source_sheet", label: "Aba" },
+  { key: "source_row", label: "Linha" },
+];
 
 function PromoIntranetSummary({ promo }: { promo: CarPricePromotionAdminSummary }) {
   return (
@@ -112,6 +219,8 @@ const ImportCarPricesTab = () => {
   const [filterApplied, setFilterApplied] = useState(false);
   const [pageSize, setPageSize] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState(0);
+  const [importedSort, setImportedSort] = useState<{ col: ImportedSortCol; asc: boolean } | null>(null);
+  const [previewSort, setPreviewSort] = useState<{ col: keyof ParsedCarPriceRow; asc: boolean } | null>(null);
   const [editingCar, setEditingCar] = useState<CarPrice | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -139,12 +248,15 @@ const ImportCarPricesTab = () => {
     : {};
 
   const { data: importedCarsData, refetch: refetchImported } = useQuery({
-    queryKey: ["car-prices-admin", currentPage, pageSize, filterParams],
+    queryKey: ["car-prices-admin", currentPage, pageSize, filterParams, importedSort],
     queryFn: () =>
       api.getCarPrices({
         limit: pageSize,
         offset: currentPage * pageSize,
         ...filterParams,
+        ...(importedSort
+          ? { orderBy: importedSort.col, orderAscending: importedSort.asc }
+          : {}),
       }),
     staleTime: 30 * 1000,
   });
@@ -279,6 +391,28 @@ const ImportCarPricesTab = () => {
     if (!previewSheet) return parsedRows;
     return parsedRows.filter((r) => r.source_sheet === previewSheet);
   }, [parsedRows, previewSheet]);
+
+  const sortedPreviewRows = useMemo(() => {
+    if (!previewSort) return previewRows;
+    const rows = [...previewRows];
+    rows.sort((a, b) => compareParsedCarPriceRows(a, b, previewSort.col, previewSort.asc));
+    return rows;
+  }, [previewRows, previewSort]);
+
+  const toggleImportedSort = (col: ImportedSortCol) => {
+    setImportedSort((prev) => {
+      if (!prev || prev.col !== col) return { col, asc: true };
+      return { col, asc: !prev.asc };
+    });
+    setCurrentPage(0);
+  };
+
+  const togglePreviewSort = (col: keyof ParsedCarPriceRow) => {
+    setPreviewSort((prev) => {
+      if (!prev || prev.col !== col) return { col, asc: true };
+      return { col, asc: !prev.asc };
+    });
+  };
 
 
   const openUnknownCategoriasDialog = () => {
@@ -704,12 +838,48 @@ const ImportCarPricesTab = () => {
           <table className="w-full text-sm min-w-max">
             <thead className="bg-slate-100">
               <tr>
-                <th className="text-left px-3 py-2 font-medium">Marca</th>
-                <th className="text-left px-3 py-2 font-medium">Nome</th>
-                <th className="text-left px-3 py-2 font-medium">Modelo</th>
-                <th className="text-left px-3 py-2 font-medium">Franquia</th>
-                <th className="text-left px-3 py-2 font-medium">Prazo</th>
-                <th className="text-left px-3 py-2 font-medium">Valor Mensal</th>
+                <SortableTableHeader
+                  active={importedSort?.col === "marca"}
+                  ascending={importedSort?.asc ?? true}
+                  onClick={() => toggleImportedSort("marca")}
+                >
+                  Marca
+                </SortableTableHeader>
+                <SortableTableHeader
+                  active={importedSort?.col === "nome_carro"}
+                  ascending={importedSort?.asc ?? true}
+                  onClick={() => toggleImportedSort("nome_carro")}
+                >
+                  Nome
+                </SortableTableHeader>
+                <SortableTableHeader
+                  active={importedSort?.col === "modelo_carro"}
+                  ascending={importedSort?.asc ?? true}
+                  onClick={() => toggleImportedSort("modelo_carro")}
+                >
+                  Modelo
+                </SortableTableHeader>
+                <SortableTableHeader
+                  active={importedSort?.col === "franquia_km_mes"}
+                  ascending={importedSort?.asc ?? true}
+                  onClick={() => toggleImportedSort("franquia_km_mes")}
+                >
+                  Franquia
+                </SortableTableHeader>
+                <SortableTableHeader
+                  active={importedSort?.col === "prazo_contrato"}
+                  ascending={importedSort?.asc ?? true}
+                  onClick={() => toggleImportedSort("prazo_contrato")}
+                >
+                  Prazo
+                </SortableTableHeader>
+                <SortableTableHeader
+                  active={importedSort?.col === "valor_mensal_locacao"}
+                  ascending={importedSort?.asc ?? true}
+                  onClick={() => toggleImportedSort("valor_mensal_locacao")}
+                >
+                  Valor Mensal
+                </SortableTableHeader>
                 <th className="text-left px-3 py-2 font-medium min-w-[220px]">Ações</th>
               </tr>
             </thead>
@@ -977,26 +1147,21 @@ const ImportCarPricesTab = () => {
                 <table className="w-full text-sm min-w-max">
                   <thead className="bg-slate-100 sticky top-0 z-10">
                     <tr>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Marca</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Nome do Carro</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Modelo</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Categoria</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Prazo Contrato</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Franquia km/mês</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Tipo Pintura</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Troca Pneus</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Manutenção</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Seguro</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Carro Reserva</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Insulfilm</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Valor km Excedido</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Valor Mensal</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Aba</th>
-                      <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Linha</th>
+                      {PREVIEW_SORTABLE_COLUMNS.map(({ key, label }) => (
+                        <SortableTableHeader
+                          key={key}
+                          nowrap
+                          active={previewSort?.col === key}
+                          ascending={previewSort?.asc ?? true}
+                          onClick={() => togglePreviewSort(key)}
+                        >
+                          {label}
+                        </SortableTableHeader>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {previewRows.slice(0, 50).map((r, i) => (
+                    {sortedPreviewRows.slice(0, 50).map((r, i) => (
                       <tr key={i} className="border-t border-slate-100 hover:bg-slate-50">
                         <td className="px-3 py-2 whitespace-nowrap">{r.marca || "—"}</td>
                         <td className="px-3 py-2 whitespace-nowrap font-medium">{r.nome_carro || "—"}</td>

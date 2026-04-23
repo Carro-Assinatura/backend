@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 
 /**
@@ -36,26 +36,36 @@ function injectFbAppIdMeta(): Plugin {
   };
 }
 
-/** Lê URL e anon do processo de build (Vercel injeta em process.env). Aceita nomes sem prefixo VITE_. */
-function supabaseEnvForBundle(): { url: string; anon: string } {
+/**
+ * URL e anon para o bundle: CI (process.env) + ficheiros .env (loadEnv).
+ * Não usar `define` com strings vazias no dev — sobrescreve o .env local e mantém a faixa amarela no localhost.
+ */
+function resolveSupabaseForBundle(mode: string): { url: string; anon: string } {
+  const fromFiles = loadEnv(mode, __dirname, "");
   const url = (
-    process.env.VITE_SUPABASE_URL ??
-    process.env.SUPABASE_URL ??
-    process.env.NEXT_PUBLIC_SUPABASE_URL ??
+    process.env.VITE_SUPABASE_URL ||
+    fromFiles.VITE_SUPABASE_URL ||
+    process.env.SUPABASE_URL ||
+    fromFiles.SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    fromFiles.NEXT_PUBLIC_SUPABASE_URL ||
     ""
   ).trim();
   const anon = (
-    process.env.VITE_SUPABASE_ANON_KEY ??
-    process.env.SUPABASE_ANON_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    fromFiles.VITE_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    fromFiles.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    fromFiles.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     ""
   ).trim();
   return { url, anon };
 }
 
 // https://vitejs.dev/config/
-export default defineConfig(() => {
-  const { url: sbUrl, anon: sbAnon } = supabaseEnvForBundle();
+export default defineConfig(({ mode }) => {
+  const { url: sbUrl, anon: sbAnon } = resolveSupabaseForBundle(mode);
 
   if (process.env.GITHUB_ACTIONS === "true" && (!sbUrl || !sbAnon)) {
     console.warn(
@@ -80,6 +90,8 @@ export default defineConfig(() => {
     server: {
       host: "localhost",
       port: 8080,
+      /** Não usar 8081, 8082… se 8080 estiver livre; falha e avisa para libertar a porta. */
+      strictPort: true,
       hmr: {
         overlay: false,
       },
@@ -90,10 +102,14 @@ export default defineConfig(() => {
         "@": path.resolve(__dirname, "./src"),
       },
     },
-    /* Embute URL/anon no bundle; aceita também SUPABASE_URL / SUPABASE_ANON_KEY (sem VITE_). */
-    define: {
-      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(sbUrl),
-      "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(sbAnon),
-    },
+    /* Só fixa no bundle quando há valor (CI/Vercel). Com strings vazias quebrava o `npm run dev` com .env local. */
+    ...(sbUrl && sbAnon
+      ? {
+          define: {
+            "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(sbUrl),
+            "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(sbAnon),
+          },
+        }
+      : {}),
   };
 });

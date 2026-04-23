@@ -1,8 +1,17 @@
 import { supabase, supabaseIsolated } from "@/lib/supabase";
+import { rewriteSupabaseMediaUrl } from "@/lib/rewriteSupabaseMediaUrl";
 import { getCarImagesMap, resolveCarImageFromMap } from "@/services/googleSheets";
 import { SITE_SOCIAL_FORM_FIELDS } from "@/config/siteSocialLinks";
 
 /* ── Interfaces ──────────────────────────────────────── */
+
+function withRewrittenTestimonialPhotos<T extends { delivery_photo_url?: string | null }>(rows: T[]): T[] {
+  return (rows ?? []).map((row) => {
+    const raw = row.delivery_photo_url ?? "";
+    const next = raw ? (rewriteSupabaseMediaUrl(raw) ?? raw) : raw;
+    return { ...row, delivery_photo_url: next } as T;
+  });
+}
 
 export interface AuthUser {
   id: string;
@@ -1244,13 +1253,22 @@ export const api = {
     modelo_carro?: string;
     franquia_km_mes?: string;
     prazo_contrato?: string;
+    /** Ordenação por coluna (intranet). Sem isto: mais recentes primeiro. */
+    orderBy?: "marca" | "nome_carro" | "modelo_carro" | "franquia_km_mes" | "prazo_contrato" | "valor_mensal_locacao";
+    orderAscending?: boolean;
   }): Promise<{ rows: CarPrice[]; total: number }> => {
-    const { limit = 100, offset = 0, marca, nome_carro, modelo_carro, franquia_km_mes, prazo_contrato } = opts ?? {};
-    let query = supabase
-      .from("car_prices")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+    const {
+      limit = 100,
+      offset = 0,
+      marca,
+      nome_carro,
+      modelo_carro,
+      franquia_km_mes,
+      prazo_contrato,
+      orderBy,
+      orderAscending,
+    } = opts ?? {};
+    let query = supabase.from("car_prices").select("*", { count: "exact" });
     if (marca?.trim()) query = query.ilike("marca", `%${marca.trim()}%`);
     if (nome_carro?.trim()) query = query.ilike("nome_carro", `%${nome_carro.trim()}%`);
     if (modelo_carro?.trim()) query = query.ilike("modelo_carro", `%${modelo_carro.trim()}%`);
@@ -1262,6 +1280,13 @@ export const api = {
       const n = parseInt(prazo_contrato.trim(), 10);
       if (!isNaN(n)) query = query.eq("prazo_contrato", n);
     }
+    if (orderBy) {
+      query = query.order(orderBy, { ascending: orderAscending ?? true, nullsFirst: false });
+      query = query.order("id", { ascending: true });
+    } else {
+      query = query.order("created_at", { ascending: false });
+    }
+    query = query.range(offset, offset + limit - 1);
     const { data, error, count } = await query;
     if (error) throw new Error(error.message);
     return { rows: data ?? [], total: count ?? 0 };
@@ -1678,7 +1703,7 @@ export const api = {
     if (opts?.clientId) query = query.eq("client_id", opts.clientId);
     const { data, error } = await query;
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return withRewrittenTestimonialPhotos(data ?? []);
   },
 
   getTestimonialsWithClients: async (): Promise<TestimonialWithClient[]> => {
@@ -1690,7 +1715,7 @@ export const api = {
       `)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []) as TestimonialWithClient[];
+    return withRewrittenTestimonialPhotos((data ?? []) as TestimonialWithClient[]);
   },
 
   getTestimonialsPublic: async (): Promise<TestimonialWithClient[]> => {
@@ -1702,7 +1727,7 @@ export const api = {
       `)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []) as TestimonialWithClient[];
+    return withRewrittenTestimonialPhotos((data ?? []) as TestimonialWithClient[]);
   },
 
   createTestimonial: async (d: { client_id: string; delivery_photo_url?: string; testimonial_text: string }): Promise<Testimonial> => {

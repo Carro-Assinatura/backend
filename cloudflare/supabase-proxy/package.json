@@ -1,0 +1,12 @@
+{
+  "name": "multi-supabase-proxy",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250129.0",
+    "wrangler": "^3.107.3"
+  }
+}

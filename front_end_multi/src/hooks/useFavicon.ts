@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabaseIsolated } from "@/lib/supabase";
+import { rewriteSupabaseMediaUrl } from "@/lib/rewriteSupabaseMediaUrl";
 
 export const FAVICON_KEY = "_favicon_empresa_";
 
@@ -11,7 +12,8 @@ async function fetchFaviconUrl(): Promise<string | null> {
     .eq("car_name", FAVICON_KEY)
     .maybeSingle();
 
-  return data?.image_url ?? null;
+  const raw = data?.image_url ?? null;
+  return raw ? rewriteSupabaseMediaUrl(raw) ?? raw : null;
 }
 
 export function useFavicon() {

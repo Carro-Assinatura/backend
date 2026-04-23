@@ -1,4 +1,5 @@
 import { supabaseIsolated } from "@/lib/supabase";
+import { rewriteSupabaseMediaUrl } from "@/lib/rewriteSupabaseMediaUrl";
 
 export interface CarRow {
   name: string;
@@ -138,7 +139,8 @@ export async function getCarImagesMap(): Promise<Map<string, string>> {
 
   const map = new Map<string, string>();
   for (const row of data ?? []) {
-    map.set(row.car_name.toLowerCase().trim(), row.image_url);
+    const url = rewriteSupabaseMediaUrl(row.image_url) ?? row.image_url;
+    map.set(row.car_name.toLowerCase().trim(), url);
   }
   return map;
 }

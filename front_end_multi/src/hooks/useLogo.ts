@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabaseIsolated } from "@/lib/supabase";
+import { rewriteSupabaseMediaUrl } from "@/lib/rewriteSupabaseMediaUrl";
 
 const LOGO_KEY = "_logo_empresa_";
 
@@ -16,7 +17,8 @@ async function fetchLogo(): Promise<LogoData | null> {
     .maybeSingle();
 
   if (!data || !data.image_url) return null;
-  return { name: "Multi Experiências", url: data.image_url };
+  const url = rewriteSupabaseMediaUrl(data.image_url) ?? data.image_url;
+  return { name: "Multi Experiências", url };
 }
 
 export function useLogo() {
