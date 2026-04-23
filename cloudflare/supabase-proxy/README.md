@@ -108,6 +108,37 @@ Com a zona **Active** na Cloudflare:
 
 Usa temporariamente a URL **`https://<teu-worker>.<conta>.workers.dev`** (aparece no dashboard do Worker) como `VITE_SUPABASE_URL` na Vercel e faz redeploy — não dependes do `sup` nem da Hostinger para o DNS do proxy.
 
+## Site na Vercel atrás do proxy Cloudflare (`multi`)
+
+Quando o DNS de **`multi.seudominio.com`** passa pela Cloudflare (**nuvem laranja / Proxied**), o site continua a ser servido pela **Vercel**, mas o tráfego visita primeiro a Cloudflare. Se **login (Supabase)** e **bot (N8N)** falham **só em produção** e em **localhost** funcionam, quase sempre é **configuração na Cloudflare** ou **CORS / URLs** no Supabase e no n8n — não o código do repositório.
+
+### Checklist Cloudflare (ordem prática)
+
+1. **SSL/TLS** → modo **Full** ou **Full (strict)**.  
+   **Nunca “Flexible”** com origem na Vercel: pode partir pedidos HTTPS, redireccionamentos ou JavaScript de forma imprevisível.
+
+2. **Registo DNS do `multi`**  
+   CNAME para o destino que a **Vercel** indica em *Project → Settings → Domains* (ex.: `cname.vercel-dns.com` ou similar).  
+   Se o site não abrir de todo, o CNAME está errado antes de culpar o Supabase.
+
+3. **Testar sem proxy (diagnóstico)**  
+   No registo **CNAME** do `multi`, liga temporariamente **DNS only** (nuvem **cinzenta**). Se **login e bot voltarem a funcionar**, o problema está nas opções com proxy laranja (SSL, cache, WAF). A Vercel [recomenda](https://vercel.com/guides/using-cloudflare-with-vercel) muitas vezes **DNS only** para o subdomínio que aponta para eles.
+
+4. **Cache**  
+   *Caching* → *Configuration*: evita “Cache Everything” para o HTML do site. Depois de mudar variáveis na Vercel, faz **Purge Cache** (Everything ou pelo menos `multi.*`). Um JS antigo no cache pode ainda conter `invalid-env-not-set` ou URL antiga do Supabase.
+
+5. **Segurança**  
+   Desliga temporariamente **Bot Fight Mode** / regras **WAF** agressivas e testa o login. Se passar a funcionar, cria uma excepção para tráfego do teu domínio ou para os paths que o browser usa (não bloquear `POST` ao teu `*.workers.dev` / Supabase).
+
+6. **Speed**  
+   Desliga **Rocket Loader** e **Email Address Obfuscation** para o hostname do site (em *Page Rules* ou *Configuration* conforme a tua UI) — por vezes interferem com SPAs e scripts.
+
+### Supabase e n8n (produção)
+
+- **Supabase** → *Authentication* → **URL Configuration**: **Site URL** = `https://multi.seudominio.com` (HTTPS, sem barra final se o dashboard assim pedir). **Redirect URLs** deve incluir essa URL e `http://localhost:8080` para desenvolvimento.
+
+- **n8n** → nó **Chat Trigger** → **Allowed Origins (CORS)** deve incluir **exactamente** a origem de produção, por exemplo `https://multi.seudominio.com` (sem path). Sem isto o chat em produção falha mesmo com Supabase a funcionar.
+
 ## Supabase → Auth (evitar login / sessão estranhos)
 
 **Authentication → URL Configuration** em [supabase.com](https://supabase.com):

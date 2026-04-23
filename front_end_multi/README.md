@@ -40,3 +40,7 @@ npx playwright test
 ## Documentação de integração
 
 Integração com N8N e tabelas Supabase: `../API-DOCUMENTATION-N8N.md` (repositório Multi).
+
+## Produção com DNS na Cloudflare
+
+Se **localhost** funciona (login + bot) e **só o domínio em produção** falha depois de apontar o DNS para a Cloudflare, vê o checklist **“Site na Vercel atrás do proxy Cloudflare (multi)”** em `../cloudflare/supabase-proxy/README.md` (SSL Full, cache, CORS no n8n, URLs no Supabase Auth).

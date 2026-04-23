@@ -160,7 +160,11 @@ const BotConfigPage = () => {
           />
           <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
             <Info size={12} />
-            No workflow N8N, use o nó <strong>Chat Trigger</strong>. Adicione seu domínio em &quot;Allowed Origins (CORS)&quot;.
+            No workflow N8N, use o nó <strong>Chat Trigger</strong>. Em &quot;Allowed Origins (CORS)&quot; inclua a origem exacta do site (sem path), por exemplo a URL abaixo e{" "}
+            <code className="rounded bg-slate-100 px-0.5">http://localhost:8080</code> para desenvolvimento.
+          </p>
+          <p className="text-xs font-mono text-slate-700 mt-2 break-all rounded border border-slate-200 bg-slate-50 px-2 py-1.5">
+            {typeof window !== "undefined" ? window.location.origin : "…"}
           </p>
           <a
             href="https://docs.n8n.io/integrations/builtin/app-nodes/n8n-nodes-base.chattrigger/"
