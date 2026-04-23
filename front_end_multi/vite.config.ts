@@ -67,6 +67,24 @@ function resolveSupabaseForBundle(mode: string): { url: string; anon: string } {
 export default defineConfig(({ mode }) => {
   const { url: sbUrl, anon: sbAnon } = resolveSupabaseForBundle(mode);
 
+  /**
+   * Sem URL+anon no build, o bundle usa `invalid-env-not-set.supabase.co` (ver supabase.ts) —
+   * o site parece “sem ligação ao Supabase” para sempre. Falhar aqui obriga a corrigir o CI
+   * (ex.: Vercel/kingsengine sem VITE_* em Production).
+   */
+  if (
+    mode === "production" &&
+    process.env.ALLOW_EMPTY_SUPABASE_BUILD !== "true" &&
+    (!sbUrl || !sbAnon)
+  ) {
+    throw new Error(
+      "[vite] Build de produção sem Supabase: defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY " +
+        "(ou SUPABASE_URL + SUPABASE_ANON_KEY) no ambiente de build, depois redeploy. " +
+        "Evita publicar JS com invalid-env-not-set.supabase.co. " +
+        "Exceção (não recomendado): ALLOW_EMPTY_SUPABASE_BUILD=true",
+    );
+  }
+
   if (process.env.GITHUB_ACTIONS === "true" && (!sbUrl || !sbAnon)) {
     console.warn(
       "[vite] Supabase ausente no build (GitHub Actions). Defina secrets VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em: Repo → Settings → Secrets and variables → Actions.",
